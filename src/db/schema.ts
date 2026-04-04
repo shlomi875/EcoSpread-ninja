@@ -1,0 +1,65 @@
+import { pgTable, text, uuid, timestamp, jsonb, integer, numeric } from 'drizzle-orm/pg-core';
+
+export const users = pgTable('users', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  email: text('email').unique().notNull(),
+  passwordHash: text('password_hash').notNull(),
+  name: text('name').notNull(),
+  role: text('role').notNull().default('viewer'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const products = pgTable('products', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  sku: text('sku'),
+  modelNumber: text('model_number'),
+  category: text('category'),
+  subCategory: text('sub_category'),
+  gender: text('gender').default('unisex'),
+  price: text('price'),
+  zapPrice: text('zap_price'),
+  zapLink: text('zap_link'),
+  targetPrice: text('target_price'),
+  minPrice: text('min_price'),
+  description: text('description'),
+  shortDescription: text('short_description'),
+  manufacturer: text('manufacturer'),
+  warranty: text('warranty'),
+  deliveryTime: text('delivery_time'),
+  payments: text('payments'),
+  movement: text('movement'),
+  diameter: text('diameter'),
+  material: text('material'),
+  waterResistance: text('water_resistance'),
+  glass: text('glass'),
+  filters: text('filters').array().default([]),
+  seoKeywords: text('seo_keywords').array().default([]),
+  images: text('images').array().default([]),
+  status: text('status').default('draft'),
+  lastUpdated: timestamp('last_updated').defaultNow(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const assets = pgTable('assets', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  type: text('type').notNull(),
+  category: text('category').notNull(),
+  brand: text('brand'),
+  model: text('model'),
+  size: text('size'),
+  date: text('date'),
+  url: text('url').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
+export const companySettings = pgTable('company_settings', {
+  id: integer('id').primaryKey().default(1),
+  name: text('name'),
+  phone: text('phone'),
+  email: text('email'),
+  about: text('about'),
+  targetPriceOffset: numeric('target_price_offset').default('-5'),
+  brands: jsonb('brands').default([]),
+});
