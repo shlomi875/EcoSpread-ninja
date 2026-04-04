@@ -15,7 +15,7 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "seed": "tsx src/db/seed.ts",
-    "build:server": "esbuild server.ts --bundle --platform=node --target=node20 --outfile=dist-server/server.js --external:pg-native"
+    "build:server": "esbuild server.ts --bundle --platform=node --target=node20 --outfile=dist-server/server.cjs --external:pg-native"
   },
   "dependencies": {
     "@google/genai": "^1.29.0",
