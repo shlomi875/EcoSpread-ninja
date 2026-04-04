@@ -5,15 +5,13 @@ import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import multer from 'multer';
-import { fileURLToPath } from 'url';
 import { existsSync, mkdirSync } from 'fs';
 import { db } from './src/db/client';
 import { users, products, assets, companySettings } from './src/db/schema';
 import { eq } from 'drizzle-orm';
 import 'dotenv/config';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = process.cwd();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'change-this-in-production';
 const UPLOADS_DIR = process.env.NODE_ENV === 'production'
