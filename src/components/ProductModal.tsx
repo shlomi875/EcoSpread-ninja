@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { X, Upload, Image as ImageIcon, Sparkles, Link, AlertCircle, Copy, Check } from 'lucide-react';
+import { X, Upload, Image as ImageIcon, Sparkles, Link, AlertCircle, Copy, Check, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Product, CompanySettings } from '../types';
 import { cn } from '../lib/utils';
@@ -20,6 +20,7 @@ export function ProductModal({ product, isOpen, onClose, onSave, language, setti
   const t = translations[language];
   const [editedProduct, setEditedProduct] = React.useState<Product | null>(null);
   const [copiedType, setCopiedType] = React.useState<'clean' | 'formatted' | null>(null);
+  const [uploadingCount, setUploadingCount] = React.useState(0);
 
   React.useEffect(() => {
     if (product) {
@@ -28,27 +29,34 @@ export function ProductModal({ product, isOpen, onClose, onSave, language, setti
   }, [product]);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
-    acceptedFiles.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const base64 = reader.result as string;
+    setUploadingCount(c => c + acceptedFiles.length);
+    acceptedFiles.forEach(async (file) => {
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        const res = await fetch('/api/upload', { method: 'POST', body: fd });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          alert('שגיאה בהעלאת תמונה: ' + (err.error || res.statusText));
+          return;
+        }
+        const { url } = await res.json();
         setEditedProduct((prev) => {
           if (!prev) return null;
-          return {
-            ...prev,
-            images: [...prev.images, base64],
-          };
+          return { ...prev, images: [...prev.images, url] };
         });
-      };
-      reader.readAsDataURL(file);
+      } finally {
+        setUploadingCount(c => c - 1);
+      }
     });
   }, []);
 
   // @ts-expect-error - react-dropzone type mismatch
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({ 
-    onDrop, 
-    accept: { 'image/jpeg': [], 'image/png': [], 'image/webp': [] },
-    multiple: true
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: { 'image/jpeg': [], 'image/png': [], 'image/webp': [], 'image/gif': [], 'image/avif': [] },
+    multiple: true,
+    maxSize: 20 * 1024 * 1024,
   });
 
   const validatePrice = (price: string) => {
@@ -307,8 +315,17 @@ export function ProductModal({ product, isOpen, onClose, onSave, language, setti
                       )}
                     >
                       <input {...getInputProps()} />
-                      <Upload className="w-6 h-6 text-gray-400 mx-auto mb-2" />
-                      <p className="text-xs text-gray-600 font-medium">{t.dropImages}</p>
+                      {uploadingCount > 0 ? (
+                        <>
+                          <Loader2 className="w-6 h-6 text-blue-500 mx-auto mb-2 animate-spin" />
+                          <p className="text-xs text-blue-600 font-medium">מעלה {uploadingCount} תמונות...</p>
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-6 h-6 text-gray-400 mx-auto mb-2" />
+                          <p className="text-xs text-gray-600 font-medium">{t.dropImages}</p>
+                        </>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-4 gap-2 mt-2">
