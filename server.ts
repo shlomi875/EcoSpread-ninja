@@ -234,17 +234,30 @@ IMPORTANT: Return ONLY a valid JSON object with these fields (no markdown, no co
 
       let result;
       if (image) {
-        // Vision request — use gemini-2.5-flash (supports multimodal input)
-        // googleSearch tool is incompatible with inline image data, so we do vision-only
+        // ── Step 1: Vision — identify the product from the image ──────
         const [mimeTypePart, base64Data] = image.split(',');
         const mimeTypeMatch = mimeTypePart.match(/:(.*?);/);
         const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/jpeg';
-        result = await ai.models.generateContent({
+        const visionResult = await ai.models.generateContent({
           model: 'gemini-2.5-flash',
           contents: [{ role: 'user', parts: [
             { inlineData: { data: base64Data, mimeType } },
-            { text: prompt },
+            { text: 'Identify this watch. Return ONLY: {"brand":"","model":"","fullName":""}. No markdown.' },
           ]}]
+        });
+        const visionText = visionResult.text?.trim() ?? '';
+        const visionMatch = visionText.match(/\{[\s\S]*?\}/);
+        const identified = visionMatch ? JSON.parse(visionMatch[0]) : {};
+        // Use identified name as the search query, fallback to user-provided query
+        const resolvedQuery = identified.fullName || identified.brand && identified.model
+          ? `${identified.brand} ${identified.model}`.trim()
+          : (query || 'unknown watch');
+
+        // ── Step 2: Web search with the identified product name ───────
+        result = await ai.models.generateContent({
+          model: model || 'gemini-2.5-flash',
+          contents: [{ role: 'user', parts: [{ text: prompt.replace(`"${query}"`, `"${resolvedQuery}"`) }] }],
+          config: { tools: [{ googleSearch: {} }] },
         });
       } else {
         // Standard text search with Google Search grounding
