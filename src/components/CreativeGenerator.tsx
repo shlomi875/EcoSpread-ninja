@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { PenTool, Sparkles, MessageSquare, Facebook, Instagram, Twitter, Send, Wand2, Package, Search, Copy, Check, RefreshCw } from 'lucide-react';
+import { PenTool, Sparkles, MessageSquare, Facebook, Instagram, Twitter, Send, Wand2, Package, Search, Copy, Check, RefreshCw, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { translations, Language } from '../i18n';
 import { Product, CompanySettings } from '../types';
 import { generateCreativeContent } from '../services/geminiService';
 import { cn } from '../lib/utils';
+import { AI_MODELS, DEFAULT_AI_MODEL, BADGE_COLORS } from '../lib/aiModels';
 
 interface CreativeGeneratorProps {
   language: Language;
@@ -17,12 +18,15 @@ type Platform = 'facebook' | 'instagram' | 'twitter' | 'telegram' | 'whatsapp' |
 export function CreativeGenerator({ language, products, settings }: CreativeGeneratorProps) {
   const t = translations[language];
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [isSearching, setIsSearching] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedContent, setGeneratedContent] = useState<string>('');
   const [activePlatform, setActivePlatform] = useState<Platform>('facebook');
   const [copied, setCopied] = useState(false);
+  const [model, setModel] = useState(DEFAULT_AI_MODEL);
+  const [showModels, setShowModels] = useState(false);
+  const selectedModel = AI_MODELS.find(m => m.id === model) ?? AI_MODELS[0];
+  const isRTL = language === 'he';
 
   const filteredProducts = products.filter(p => 
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -38,7 +42,7 @@ export function CreativeGenerator({ language, products, settings }: CreativeGene
     setGeneratedContent('');
     
     try {
-      const content = await generateCreativeContent(selectedProduct, platform, language, settings);
+      const content = await generateCreativeContent(selectedProduct, platform, language, settings, undefined, model);
       setGeneratedContent(content);
     } catch (error) {
       console.error(error);
@@ -151,6 +155,49 @@ export function CreativeGenerator({ language, products, settings }: CreativeGene
 
         {/* Generation Column */}
         <div className="lg:col-span-2 space-y-6">
+
+          {/* Model Selector */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowModels(v => !v)}
+              className="w-full flex items-center justify-between px-4 py-2.5 bg-white border border-gray-100 rounded-2xl text-sm font-medium text-gray-700 hover:bg-gray-50 shadow-sm transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-blue-500" />
+                <span>{selectedModel.label}</span>
+                <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-bold border', BADGE_COLORS[selectedModel.badge])}>
+                  {selectedModel.badge}
+                </span>
+              </div>
+              <ChevronDown className={cn('w-4 h-4 text-gray-400 transition-transform', showModels && 'rotate-180')} />
+            </button>
+            <AnimatePresence>
+              {showModels && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+                  className="absolute top-full mt-1 left-0 right-0 bg-white border border-gray-100 rounded-xl shadow-lg z-10 overflow-hidden"
+                >
+                  {AI_MODELS.map(m => (
+                    <button
+                      key={m.id} type="button"
+                      onClick={() => { setModel(m.id); setShowModels(false); }}
+                      className={cn(
+                        'w-full flex items-center justify-between px-4 py-3 text-sm font-medium transition-colors hover:bg-gray-50',
+                        model === m.id ? 'text-blue-600 bg-blue-50/50' : 'text-gray-700'
+                      )}
+                    >
+                      <span>{m.label}</span>
+                      <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-bold border', BADGE_COLORS[m.badge])}>
+                        {m.badge}
+                      </span>
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             {platforms.map((item) => (
               <motion.button

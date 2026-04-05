@@ -1,15 +1,17 @@
 import { Product, CompanySettings } from '../types';
 import { Language } from '../i18n';
+import { DEFAULT_AI_MODEL } from '../lib/aiModels';
 
 export async function searchProductData(
   query: string,
   lang: Language = 'he',
-  settings?: CompanySettings
+  settings?: CompanySettings,
+  model = DEFAULT_AI_MODEL
 ): Promise<Partial<Product>> {
   const r = await fetch('/api/ai/search', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query, language: lang, settings }),
+    body: JSON.stringify({ query, language: lang, settings, model }),
   });
   if (!r.ok) throw new Error('AI search failed');
   return r.json();
@@ -18,12 +20,13 @@ export async function searchProductData(
 export async function generateProductContent(
   product: Partial<Product>,
   lang: Language = 'he',
-  settings?: CompanySettings
+  settings?: CompanySettings,
+  model = DEFAULT_AI_MODEL
 ): Promise<string> {
   const r = await fetch('/api/ai/generate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ product, language: lang, settings }),
+    body: JSON.stringify({ product, language: lang, settings, model }),
   });
   if (!r.ok) throw new Error('AI generate failed');
   const data = await r.json();
@@ -35,12 +38,13 @@ export async function generateCreativeContent(
   platform: 'facebook' | 'instagram' | 'twitter' | 'telegram' | 'whatsapp' | 'custom',
   lang: Language = 'he',
   settings?: CompanySettings,
-  customPrompt?: string
+  customPrompt?: string,
+  model = DEFAULT_AI_MODEL
 ): Promise<string> {
   const r = await fetch('/api/ai/creative', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ product, platform, language: lang, settings, customPrompt }),
+    body: JSON.stringify({ product, platform, language: lang, settings, customPrompt, model }),
   });
   if (!r.ok) throw new Error('AI creative failed');
   const data = await r.json();

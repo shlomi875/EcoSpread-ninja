@@ -124,10 +124,10 @@ export default function App() {
   // ── AI Research ───────────────────────────────────────────────────
   const handleSearchWeb = () => setIsSearchModalOpen(true);
 
-  const executeSearch = async (query: string) => {
+  const executeSearch = async (query: string, model?: string) => {
     setIsSearching(true);
     try {
-      const data = await searchProductData(query, language, settings);
+      const data = await searchProductData(query, language, settings, model);
       const newProduct: Product = {
         id: '', name: data.name || query, sku: data.sku || '', modelNumber: data.modelNumber || '',
         category: data.category || 'Uncategorized', gender: data.gender || 'unisex',
