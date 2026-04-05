@@ -6,7 +6,7 @@ import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import multer from 'multer';
-import { existsSync, mkdirSync } from 'fs';
+import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { GoogleGenAI } from '@google/genai';
 import { db } from './src/db/client';
 import { users, products, assets, companySettings } from './src/db/schema';
@@ -59,7 +59,7 @@ async function startServer() {
   const app = express();
   const PORT = Number(process.env.PORT) || 3000;
 
-  app.use(express.json({ limit: '2mb' }));
+  app.use(express.json({ limit: '50mb' })); // temporary: allows old base64 products to be saved while migrating to URL-based images
   app.use(cookieParser());
 
   // Serve uploaded files
@@ -111,9 +111,30 @@ async function startServer() {
     res.json(row);
   });
 
+  // Converts base64 image strings to uploaded files, returns URL array
+  function migrateBase64Images(images: string[]): string[] {
+    return images.map((img) => {
+      if (!img.startsWith('data:image/')) return img; // already a URL
+      try {
+        const match = img.match(/^data:image\/(\w+);base64,(.+)$/);
+        if (!match) return img;
+        const ext = match[1] === 'jpeg' ? 'jpg' : match[1];
+        const filename = `${randomUUID()}.${ext}`;
+        const filepath = path.join(UPLOADS_DIR, filename);
+        writeFileSync(filepath, Buffer.from(match[2], 'base64'));
+        return `/uploads/${filename}`;
+      } catch {
+        return img; // keep as-is on error
+      }
+    });
+  }
+
   app.put('/api/products/:id', authenticate, requireRole('admin', 'editor'), async (req, res) => {
     try {
       const { id, createdAt, lastUpdated, ...rest } = req.body;
+      if (Array.isArray(rest.images)) {
+        rest.images = migrateBase64Images(rest.images);
+      }
       const [row] = await db.update(products)
         .set({ ...rest, lastUpdated: new Date() })
         .where(eq(products.id, req.params.id))
