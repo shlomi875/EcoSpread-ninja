@@ -102,7 +102,7 @@ async function startServer() {
   });
 
   app.post('/api/products', authenticate, requireRole('admin', 'editor'), async (req, res) => {
-    const { id, ...rest } = req.body;
+    const { id, createdAt, lastUpdated, ...rest } = req.body;
     const [row] = await db.insert(products).values({
       id: id || randomUUID(),
       ...rest,
@@ -112,8 +112,9 @@ async function startServer() {
   });
 
   app.put('/api/products/:id', authenticate, requireRole('admin', 'editor'), async (req, res) => {
+    const { createdAt, lastUpdated, ...rest } = req.body;
     const [row] = await db.update(products)
-      .set({ ...req.body, lastUpdated: new Date() })
+      .set({ ...rest, lastUpdated: new Date() })
       .where(eq(products.id, req.params.id))
       .returning();
     res.json(row);
@@ -131,7 +132,8 @@ async function startServer() {
   });
 
   app.post('/api/assets', authenticate, requireRole('admin', 'editor'), async (req, res) => {
-    const [row] = await db.insert(assets).values(req.body).returning();
+    const { id, createdAt, ...rest } = req.body;
+    const [row] = await db.insert(assets).values(rest).returning();
     res.json(row);
   });
 
@@ -198,8 +200,14 @@ async function startServer() {
 
   // ─── AI / Gemini ───────────────────────────────────────────────────
   app.post('/api/ai/search', authenticate, async (req, res) => {
-    const { query, language, settings, model = 'gemini-2.0-flash' } = req.body;
+    const { query, language, settings, model = 'gemini-2.0-flash', writingStyle = 'marketing', negativePrompts = '' } = req.body;
     const brandConfigs = settings?.brands || [];
+    const styleGuide: Record<string, string> = {
+      marketing: 'high-converting marketing copy — focus on emotional benefits, urgency, and aspirational language',
+      formal: 'formal and professional tone — precise, authoritative, no slang or emojis',
+      casual: 'casual and friendly tone — conversational, approachable, like talking to a friend',
+      technical: 'technical and spec-focused — emphasize accuracy, measurements, and product details',
+    };
     try {
       // googleSearch tool is incompatible with responseMimeType/responseSchema.
       // We ask for JSON in the prompt and extract it from the plain text response.
@@ -214,9 +222,10 @@ STRICT FORMATTING RULES:
 5. ZAP: Search for the product on Zap.co.il. Provide the link and the lowest price.
 6. TARGET PRICE: Calculate as (Zap Lowest Price - ${settings?.targetPriceOffset || 5}%).
 7. CATEGORIES: Parent: "מותגי שעונים" -> Sub: "[Brand Name]".
-8. DESCRIPTION: Short, high-converting marketing description (no technical specs).
+8. DESCRIPTION: ${styleGuide[writingStyle] || styleGuide.marketing} (no technical specs in description).
 9. SEO KEYWORDS: 5-10 relevant keywords.
 10. FILTERS: Movement, Diameter, Material, Gender, Water Resistance, Glass.
+${negativePrompts ? `STRICTLY AVOID mentioning any of the following in the description: ${negativePrompts}.` : ''}
 BRAND CONTEXT:
 ${brandConfigs.map((b: any) => `- ${b.brandName}: Warranty: ${b.warranty}, Min Price: ${b.minPrice}`).join('\n')}
 Provide the response in ${language === 'he' ? 'Hebrew' : 'English'}.
@@ -295,7 +304,8 @@ Output: Provide ONLY the generated text, ready to copy and paste.`,
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 EcoSpread running on http://localhost:${PORT}`);
+    const appUrl = process.env.APP_URL?.replace(/\/$/, '') || `http://localhost:${PORT}`;
+    console.log(`🚀 EcoSpread running on ${appUrl} (port ${PORT})`);
   });
 }
 

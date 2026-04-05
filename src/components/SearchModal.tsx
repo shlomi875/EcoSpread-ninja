@@ -8,22 +8,31 @@ import { cn } from '../lib/utils';
 interface SearchModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSearch: (query: string, model: string) => void;
+  onSearch: (query: string, model: string, writingStyle: string, negativePrompts: string) => void;
   isSearching: boolean;
   language: Language;
 }
+
+const WRITING_STYLES = [
+  { value: 'marketing', label: 'שיווקי', labelEn: 'Marketing' },
+  { value: 'formal', label: 'פורמלי', labelEn: 'Formal' },
+  { value: 'casual', label: 'קליל', labelEn: 'Casual' },
+  { value: 'technical', label: 'טכני', labelEn: 'Technical' },
+];
 
 export function SearchModal({ isOpen, onClose, onSearch, isSearching, language }: SearchModalProps) {
   const t = translations[language];
   const [query, setQuery] = useState('');
   const [model, setModel] = useState(DEFAULT_AI_MODEL);
   const [showModels, setShowModels] = useState(false);
+  const [writingStyle, setWritingStyle] = useState('marketing');
+  const [negativePrompts, setNegativePrompts] = useState('');
 
   const selectedModel = AI_MODELS.find(m => m.id === model) ?? AI_MODELS[0];
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (query.trim()) onSearch(query, model);
+    if (query.trim()) onSearch(query, model, writingStyle, negativePrompts);
   };
 
 
@@ -104,6 +113,39 @@ export function SearchModal({ isOpen, onClose, onSearch, isSearching, language }
                     </motion.div>
                   )}
                 </AnimatePresence>
+              </div>
+
+              {/* Writing style */}
+              <div className="grid grid-cols-4 gap-1.5">
+                {WRITING_STYLES.map(s => (
+                  <button
+                    key={s.value}
+                    type="button"
+                    onClick={() => setWritingStyle(s.value)}
+                    className={cn(
+                      'py-2 rounded-xl text-xs font-bold border transition-all',
+                      writingStyle === s.value
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-gray-50 text-gray-600 border-gray-100 hover:border-blue-200'
+                    )}
+                  >
+                    {language === 'he' ? s.label : s.labelEn}
+                  </button>
+                ))}
+              </div>
+
+              {/* Negative prompts */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  {language === 'he' ? 'אל תכלול (מילות שלילה)' : 'Avoid mentioning'}
+                </label>
+                <input
+                  type="text"
+                  value={negativePrompts}
+                  onChange={(e) => setNegativePrompts(e.target.value)}
+                  placeholder={language === 'he' ? 'למשל: מחיר, מתחרים, אחריות...' : 'e.g. price, competitors, warranty...'}
+                  className="w-full px-4 py-2.5 border-2 border-gray-100 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-50/50 outline-none transition-all text-sm text-gray-700"
+                />
               </div>
 
               <button

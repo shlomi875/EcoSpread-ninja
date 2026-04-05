@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Save, Building2, Phone, Mail, Info, Calculator, Plus, Trash2 } from 'lucide-react';
 import { CompanySettings, BrandConfig } from '../types';
@@ -15,6 +15,10 @@ interface SettingsModalProps {
 export function SettingsModal({ isOpen, onClose, settings, onSave, language }: SettingsModalProps) {
   const [formData, setFormData] = useState<CompanySettings>(settings);
   const t = translations[language];
+
+  useEffect(() => {
+    if (isOpen) setFormData(settings);
+  }, [isOpen, settings]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,6 +89,32 @@ export function SettingsModal({ isOpen, onClose, settings, onSave, language }: S
                     type="number"
                     value={formData.targetPriceOffset}
                     onChange={(e) => setFormData({ ...formData, targetPriceOffset: Number(e.target.value) })}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <Phone className="w-4 h-4 text-blue-600" />
+                    {t.phone || 'טלפון'}
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.phone || ''}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-blue-600" />
+                    {t.email || 'אימייל'}
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.email || ''}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
                   />
                 </div>

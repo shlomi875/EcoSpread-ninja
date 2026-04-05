@@ -6,12 +6,14 @@ export async function searchProductData(
   query: string,
   lang: Language = 'he',
   settings?: CompanySettings,
-  model = DEFAULT_AI_MODEL
+  model = DEFAULT_AI_MODEL,
+  writingStyle = 'marketing',
+  negativePrompts = ''
 ): Promise<Partial<Product>> {
   const r = await fetch('/api/ai/search', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query, language: lang, settings, model }),
+    body: JSON.stringify({ query, language: lang, settings, model, writingStyle, negativePrompts }),
   });
   if (!r.ok) throw new Error('AI search failed');
   return r.json();
