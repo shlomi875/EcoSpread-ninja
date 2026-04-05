@@ -7,7 +7,7 @@ import {
   getFilteredRowModel,
 } from '@tanstack/react-table';
 import { Product } from '../types';
-import { Edit2, ExternalLink, Image as ImageIcon, Search, Trash2, CheckSquare, Square, Zap, Sparkles } from 'lucide-react';
+import { Edit2, ExternalLink, Eye, Image as ImageIcon, Search, Trash2, CheckSquare, Square, Sparkles, Filter, X } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { translations, Language } from '../i18n';
 
@@ -15,6 +15,7 @@ interface SpreadsheetProps {
   data: Product[];
   onEdit: (product: Product) => void;
   onDelete: (id: string) => void;
+  onView: (product: Product) => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
   language: Language;
@@ -24,9 +25,34 @@ interface SpreadsheetProps {
 
 const columnHelper = createColumnHelper<Product>();
 
-export function Spreadsheet({ data, onEdit, onDelete, searchQuery, onSearchChange, language, role, onAudit }: SpreadsheetProps) {
+export function Spreadsheet({ data, onEdit, onDelete, onView, searchQuery, onSearchChange, language, role, onAudit }: SpreadsheetProps) {
   const t = translations[language];
   const [rowSelection, setRowSelection] = React.useState({});
+  const [filterCategory, setFilterCategory] = React.useState('');
+  const [filterStatus, setFilterStatus] = React.useState('');
+  const [filterGender, setFilterGender] = React.useState('');
+
+  const categories = React.useMemo(
+    () => Array.from(new Set(data.map(p => p.category).filter(Boolean))).sort(),
+    [data]
+  );
+
+  const activeFilterCount = [filterCategory, filterStatus, filterGender].filter(Boolean).length;
+
+  const filteredData = React.useMemo(() =>
+    data.filter(p =>
+      (!filterCategory || p.category === filterCategory) &&
+      (!filterStatus || p.status === filterStatus) &&
+      (!filterGender || p.gender === filterGender)
+    ),
+    [data, filterCategory, filterStatus, filterGender]
+  );
+
+  const clearFilters = () => {
+    setFilterCategory('');
+    setFilterStatus('');
+    setFilterGender('');
+  };
 
   const columns = [
     columnHelper.display({
@@ -96,9 +122,9 @@ export function Spreadsheet({ data, onEdit, onDelete, searchQuery, onSearchChang
       header: t.zapLink,
       cell: (info) => (
         info.getValue() ? (
-          <a 
-            href={info.getValue()} 
-            target="_blank" 
+          <a
+            href={info.getValue()}
+            target="_blank"
             rel="noopener noreferrer"
             className="text-blue-500 hover:text-blue-700 transition-colors"
           >
@@ -127,38 +153,39 @@ export function Spreadsheet({ data, onEdit, onDelete, searchQuery, onSearchChang
       id: 'actions',
       header: '',
       cell: (info) => {
-        const canEdit = (info.table.options.meta as any)?.role !== 'viewer';
-        const isAdmin = (info.table.options.meta as any)?.role === 'admin';
+        const tableRole = (info.table.options.meta as any)?.role;
+        const canEdit = tableRole !== 'viewer';
+        const isAdmin = tableRole === 'admin';
         return (
-          <div className={cn("flex gap-2", language === 'he' ? "justify-start" : "justify-end")}>
+          <div className={cn("flex gap-1", language === 'he' ? "justify-start" : "justify-end")}>
+            {/* View (read-only) button — always visible */}
             <button
-              onClick={() => onEdit(info.row.original)}
-              disabled={!canEdit}
-              className={cn(
-                "p-2 rounded-lg transition-colors",
-                canEdit ? "hover:bg-blue-50 text-blue-600" : "opacity-30 cursor-not-allowed text-gray-400"
-              )}
-              title={canEdit ? "Edit Product" : "View Only"}
+              onClick={() => onView(info.row.original)}
+              className="p-2 hover:bg-purple-50 text-purple-500 rounded-lg transition-colors"
+              title={(t as any).viewProduct}
             >
-              <Edit2 className="w-4 h-4" />
+              <Eye className="w-4 h-4" />
             </button>
-            <button
-              onClick={() => onDelete(info.row.original.id)}
-              disabled={!isAdmin}
-              className={cn(
-                "p-2 rounded-lg transition-colors",
-                isAdmin ? "hover:bg-red-50 text-red-500" : "opacity-30 cursor-not-allowed text-gray-400"
-              )}
-              title={isAdmin ? "Delete Product" : "Admin Only"}
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-            <button
-              className="p-2 hover:bg-gray-100 text-gray-400 rounded-lg transition-colors"
-              title="View Page"
-            >
-              <ExternalLink className="w-4 h-4" />
-            </button>
+            {/* Edit button — hidden for viewer */}
+            {canEdit && (
+              <button
+                onClick={() => onEdit(info.row.original)}
+                className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"
+                title="Edit Product"
+              >
+                <Edit2 className="w-4 h-4" />
+              </button>
+            )}
+            {/* Delete — admin only */}
+            {isAdmin && (
+              <button
+                onClick={() => onDelete(info.row.original.id)}
+                className="p-2 hover:bg-red-50 text-red-500 rounded-lg transition-colors"
+                title="Delete Product"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
           </div>
         );
       },
@@ -166,11 +193,9 @@ export function Spreadsheet({ data, onEdit, onDelete, searchQuery, onSearchChang
   ];
 
   const table = useReactTable({
-    data,
+    data: filteredData,
     columns,
-    state: {
-      rowSelection,
-    },
+    state: { rowSelection },
     onRowSelectionChange: setRowSelection,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
@@ -179,9 +204,15 @@ export function Spreadsheet({ data, onEdit, onDelete, searchQuery, onSearchChang
 
   const selectedProducts = table.getSelectedRowModel().rows.map(r => r.original);
 
+  const selectClass = cn(
+    "px-3 py-1.5 text-xs border rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none text-gray-700 cursor-pointer hover:border-blue-400 transition-colors",
+    language === 'he' ? "text-right" : "text-left"
+  );
+
   return (
     <div className="w-full h-full flex flex-col bg-white rounded-xl shadow-sm border overflow-hidden">
-      <div className="p-4 border-b bg-gray-50/50 flex items-center justify-between">
+      {/* Top bar: search + count */}
+      <div className="p-4 border-b bg-gray-50/50 flex items-center justify-between gap-4 flex-wrap">
         <div className="relative w-64">
           <Search className={cn("absolute top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400", language === 'he' ? "right-3" : "left-3")} />
           <input
@@ -196,7 +227,7 @@ export function Spreadsheet({ data, onEdit, onDelete, searchQuery, onSearchChang
           />
         </div>
         <div className="flex items-center gap-4 text-xs">
-          {selectedProducts.length > 0 && (
+          {selectedProducts.length > 0 ? (
             <button
               onClick={() => onAudit(selectedProducts)}
               className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg font-bold shadow-sm hover:shadow-md transition-all active:scale-[0.98]"
@@ -204,14 +235,69 @@ export function Spreadsheet({ data, onEdit, onDelete, searchQuery, onSearchChang
               <Sparkles className="w-3.5 h-3.5" />
               {(t as any).masterSeo}
             </button>
-          ) || (
+          ) : (
             <div className="flex items-center gap-4 text-gray-500">
-              <span>{data.length} {t.products}</span>
+              <span>{filteredData.length}{activeFilterCount > 0 ? ` / ${data.length}` : ''} {t.products}</span>
               <div className="h-4 w-[1px] bg-gray-200" />
               <span>{t.autoSave}</span>
             </div>
           )}
         </div>
+      </div>
+
+      {/* Filter bar */}
+      <div className={cn(
+        "px-4 py-2.5 border-b bg-white flex items-center gap-2 flex-wrap",
+        language === 'he' ? "flex-row-reverse justify-end" : ""
+      )}>
+        <Filter className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
+
+        {/* Category */}
+        <select
+          value={filterCategory}
+          onChange={e => setFilterCategory(e.target.value)}
+          className={selectClass}
+        >
+          <option value="">{(t as any).filterCategory}</option>
+          {categories.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+
+        {/* Status */}
+        <select
+          value={filterStatus}
+          onChange={e => setFilterStatus(e.target.value)}
+          className={selectClass}
+        >
+          <option value="">{(t as any).filterStatus}</option>
+          <option value="draft">{t.draft}</option>
+          <option value="ready">{t.ready}</option>
+          <option value="published">{t.published}</option>
+        </select>
+
+        {/* Gender */}
+        <select
+          value={filterGender}
+          onChange={e => setFilterGender(e.target.value)}
+          className={selectClass}
+        >
+          <option value="">{(t as any).filterGender}</option>
+          <option value="men">{t.genderMen}</option>
+          <option value="women">{t.genderWomen}</option>
+          <option value="unisex">{t.genderUnisex}</option>
+          <option value="kids">{t.genderKids}</option>
+        </select>
+
+        {/* Clear filters */}
+        {activeFilterCount > 0 && (
+          <button
+            onClick={clearFilters}
+            className="flex items-center gap-1 px-2.5 py-1.5 text-xs text-red-600 hover:bg-red-50 border border-red-200 rounded-lg transition-colors"
+          >
+            <X className="w-3 h-3" />
+            {(t as any).clearFilters}
+            <span className="bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold">{activeFilterCount}</span>
+          </button>
+        )}
       </div>
 
       <div className="flex-1 overflow-auto">
@@ -245,7 +331,7 @@ export function Spreadsheet({ data, onEdit, onDelete, searchQuery, onSearchChang
             ))}
           </tbody>
         </table>
-        {data.length === 0 && (
+        {filteredData.length === 0 && (
           <div className="flex flex-col items-center justify-center py-20 text-gray-400">
             <Search className="w-12 h-12 mb-4 opacity-20" />
             <p className="text-lg font-medium">{t.noProducts}</p>

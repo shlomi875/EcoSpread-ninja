@@ -103,7 +103,16 @@ export const translations = {
     genderUnisex: 'Unisex',
     genderKids: 'Kids',
     uploadProductImage: 'Scan Image with AI',
-    pending: 'Pending Approval'
+    pending: 'Pending Approval',
+    viewOnly: 'View Only',
+    viewProduct: 'View Product',
+    filterAll: 'All',
+    filterCategory: 'All Categories',
+    filterStatus: 'All Statuses',
+    filterGender: 'All Genders',
+    clearFilters: 'Clear Filters',
+    downloadImage: 'Download',
+    copyText: 'Copy Text',
   },
   he: {
     appName: 'EcoSpread',
@@ -207,6 +216,15 @@ export const translations = {
     genderUnisex: 'יוניסקס',
     genderKids: 'ילדים',
     uploadProductImage: 'סרוק מוצר מתמונה',
-    pending: 'ממתין לאישור'
+    pending: 'ממתין לאישור',
+    viewOnly: 'צפייה בלבד',
+    viewProduct: 'צפה במוצר',
+    filterAll: 'הכל',
+    filterCategory: 'כל הקטגוריות',
+    filterStatus: 'כל הסטטוסים',
+    filterGender: 'כל המגדרים',
+    clearFilters: 'נקה פילטרים',
+    downloadImage: 'הורד',
+    copyText: 'העתק',
   }
 };

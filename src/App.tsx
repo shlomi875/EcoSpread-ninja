@@ -37,6 +37,7 @@ export default function App() {
   const [activeView, setActiveView] = useState<AppView>('dashboard');
   const [selectedAuditProducts, setSelectedAuditProducts] = useState<Product[]>([]);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
+  const [isViewMode, setIsViewMode] = useState(false);
 
   const t = translations[language];
 
@@ -261,7 +262,8 @@ export default function App() {
                 data={filteredProducts}
                 language={language}
                 role={user.role}
-                onEdit={(p) => { setSelectedProduct(p); setIsModalOpen(true); }}
+                onEdit={(p) => { setSelectedProduct(p); setIsViewMode(false); setIsModalOpen(true); }}
+                onView={(p) => { setSelectedProduct(p); setIsViewMode(true); setIsModalOpen(true); }}
                 onDelete={handleDeleteProduct}
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
@@ -295,7 +297,8 @@ export default function App() {
 
       <ProductModal
         isOpen={isModalOpen} product={selectedProduct} language={language} settings={settings}
-        onClose={() => setIsModalOpen(false)} onSave={handleSaveProduct}
+        onClose={() => { setIsModalOpen(false); setIsViewMode(false); }} onSave={handleSaveProduct}
+        readOnly={isViewMode} role={user?.role}
       />
       <SearchModal
         isOpen={isSearchModalOpen} language={language}
