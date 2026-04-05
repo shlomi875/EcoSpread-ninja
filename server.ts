@@ -112,12 +112,18 @@ async function startServer() {
   });
 
   app.put('/api/products/:id', authenticate, requireRole('admin', 'editor'), async (req, res) => {
-    const { createdAt, lastUpdated, ...rest } = req.body;
-    const [row] = await db.update(products)
-      .set({ ...rest, lastUpdated: new Date() })
-      .where(eq(products.id, req.params.id))
-      .returning();
-    res.json(row);
+    try {
+      const { id, createdAt, lastUpdated, ...rest } = req.body;
+      const [row] = await db.update(products)
+        .set({ ...rest, lastUpdated: new Date() })
+        .where(eq(products.id, req.params.id))
+        .returning();
+      if (!row) return res.status(404).json({ error: 'Product not found' });
+      res.json(row);
+    } catch (err: any) {
+      console.error('PUT /api/products error:', err);
+      res.status(500).json({ error: err?.message || 'Internal server error' });
+    }
   });
 
   app.delete('/api/products/:id', authenticate, requireRole('admin'), async (req, res) => {

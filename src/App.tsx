@@ -102,13 +102,16 @@ export default function App() {
         isNew ? '/api/products' : `/api/products/${updatedProduct.id}`,
         { method: isNew ? 'POST' : 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updatedProduct) }
       );
-      if (!r.ok) throw new Error('Save failed');
+      if (!r.ok) {
+        const errBody = await r.json().catch(() => ({}));
+        throw new Error(errBody.error || `HTTP ${r.status}`);
+      }
       const saved = await r.json();
       setProducts(prev => isNew ? [saved, ...prev] : prev.map(p => p.id === saved.id ? saved : p));
       setIsModalOpen(false);
       showNotification('success', t.successSave);
-    } catch {
-      showNotification('error', 'שמירה נכשלה. נסה שוב.');
+    } catch (err: any) {
+      showNotification('error', 'שמירה נכשלה: ' + (err?.message || 'נסה שוב'));
     }
   };
 
