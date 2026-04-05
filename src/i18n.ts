@@ -90,7 +90,20 @@ export const translations = {
     logo: 'Logo',
     other: 'Other',
     filterByBrand: 'Filter by Brand',
-    filterByCategory: 'Filter by Category'
+    filterByCategory: 'Filter by Category',
+    copyFormatted: 'Copy Formatted',
+    copyClean: 'Copy Clean',
+    masterSeo: 'MASTER SEO AEO GEO',
+    seoAudit: 'SEO Audit',
+    seoScore: 'SEO Score',
+    seoSuggestions: 'Optimization Suggestions',
+    applyChanges: 'Apply Upgraded Content',
+    genderMen: 'Men',
+    genderWomen: 'Women',
+    genderUnisex: 'Unisex',
+    genderKids: 'Kids',
+    uploadProductImage: 'Scan Image with AI',
+    pending: 'Pending Approval'
   },
   he: {
     appName: 'EcoSpread',
@@ -181,6 +194,19 @@ export const translations = {
     logo: 'לוגו',
     other: 'אחר',
     filterByBrand: 'סנן לפי מותג',
-    filterByCategory: 'סנן לפי קטגוריה'
+    filterByCategory: 'סנן לפי קטגוריה',
+    copyFormatted: 'העתק גרסה מעוצבת',
+    copyClean: 'העתק גרסה נקייה',
+    masterSeo: 'Master SEO AEO GEO',
+    seoAudit: 'בדיקת SEO',
+    seoScore: 'ציון SEO',
+    seoSuggestions: 'הצעות לאופטימיזציה',
+    applyChanges: 'עדכן תוכן משודרג',
+    genderMen: 'גבר',
+    genderWomen: 'אישה',
+    genderUnisex: 'יוניסקס',
+    genderKids: 'ילדים',
+    uploadProductImage: 'סרוק מוצר מתמונה',
+    pending: 'ממתין לאישור'
   }
 };

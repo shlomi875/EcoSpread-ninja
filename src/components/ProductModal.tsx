@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { X, Upload, Image as ImageIcon, Sparkles, Link, AlertCircle } from 'lucide-react';
+import { X, Upload, Image as ImageIcon, Sparkles, Link, AlertCircle, Copy, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Product, CompanySettings } from '../types';
 import { cn } from '../lib/utils';
@@ -19,6 +19,7 @@ interface ProductModalProps {
 export function ProductModal({ product, isOpen, onClose, onSave, language, settings }: ProductModalProps) {
   const t = translations[language];
   const [editedProduct, setEditedProduct] = React.useState<Product | null>(null);
+  const [copiedType, setCopiedType] = React.useState<'clean' | 'formatted' | null>(null);
 
   React.useEffect(() => {
     if (product) {
@@ -75,6 +76,17 @@ export function ProductModal({ product, isOpen, onClose, onSave, language, setti
     }
 
     onSave(editedProduct);
+  };
+
+  const handleCopy = (type: 'clean' | 'formatted') => {
+    if (!editedProduct) return;
+    let text = editedProduct.description || '';
+    if (type === 'clean') {
+      text = text.replace(/[*#_~`>]/g, '').replace(/\n+/g, '\n').trim();
+    }
+    navigator.clipboard.writeText(text);
+    setCopiedType(type);
+    setTimeout(() => setCopiedType(null), 2000);
   };
 
   if (!editedProduct) return null;
@@ -142,16 +154,15 @@ export function ProductModal({ product, isOpen, onClose, onSave, language, setti
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">{t.gender}</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{(t as any).status}</label>
                         <select
-                          value={editedProduct.gender}
-                          onChange={(e) => setEditedProduct({ ...editedProduct, gender: e.target.value as any })}
+                          value={editedProduct.status}
+                          onChange={(e) => setEditedProduct({ ...editedProduct, status: e.target.value as any })}
                           className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
                         >
-                          <option value="men">Men</option>
-                          <option value="women">Women</option>
-                          <option value="unisex">Unisex</option>
-                          <option value="kids">Kids</option>
+                          <option value="draft">{t.draft}</option>
+                          <option value="ready">{t.ready}</option>
+                          <option value="published">{t.published}</option>
                         </select>
                       </div>
                     </div>
@@ -349,17 +360,34 @@ export function ProductModal({ product, isOpen, onClose, onSave, language, setti
                 </div>
                 <div>
                   <div className="flex justify-between items-center mb-1">
-                    <label className="block text-sm font-medium text-gray-700">{t.description}</label>
-                    <button
-                      onClick={async () => {
-                        const content = await generateProductContent(editedProduct, language, settings);
-                        setEditedProduct({ ...editedProduct, description: content });
-                      }}
-                      className="text-xs flex items-center gap-1 text-blue-600 hover:text-blue-700 font-semibold"
-                    >
-                      <Sparkles className="w-3 h-3" />
-                      {t.aiGenerate}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleCopy('formatted')}
+                        className="text-[10px] flex items-center gap-1 text-gray-500 hover:text-blue-600 transition-colors"
+                        title={(t as any).copyFormatted}
+                      >
+                        {copiedType === 'formatted' ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
+                        {(t as any).copyFormatted}
+                      </button>
+                      <button
+                        onClick={() => handleCopy('clean')}
+                        className="text-[10px] flex items-center gap-1 text-gray-500 hover:text-blue-600 transition-colors"
+                        title={(t as any).copyClean}
+                      >
+                        {copiedType === 'clean' ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
+                        {(t as any).copyClean}
+                      </button>
+                      <button
+                        onClick={async () => {
+                          const content = await generateProductContent(editedProduct, language, settings);
+                          setEditedProduct({ ...editedProduct, description: content });
+                        }}
+                        className="text-xs flex items-center gap-1 text-blue-600 hover:text-blue-700 font-semibold ml-2"
+                      >
+                        <Sparkles className="w-3 h-3" />
+                        {t.aiGenerate}
+                      </button>
+                    </div>
                   </div>
                   <textarea
                     rows={7}
