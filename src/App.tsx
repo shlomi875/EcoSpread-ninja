@@ -9,6 +9,7 @@ import { Login } from './components/Login';
 import { Dashboard } from './components/Dashboard';
 import { CreativeGenerator } from './components/CreativeGenerator';
 import { AssetsManager } from './components/AssetsManager';
+import { UsersManager } from './components/UsersManager';
 import { Product, CompanySettings, AppView } from './types';
 import { translations, Language } from './i18n';
 import { searchProductData } from './services/geminiService';
@@ -255,6 +256,12 @@ export default function App() {
         {activeView === 'assets' && (
           <div className="p-10">
             <AssetsManager language={language} brands={settings.brands?.map(b => b.brandName) || []} />
+          </div>
+        )}
+
+        {activeView === 'users' && user?.role === 'admin' && (
+          <div className="p-10">
+            <UsersManager language={language} />
           </div>
         )}
       </main>

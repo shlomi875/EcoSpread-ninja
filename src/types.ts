@@ -1,4 +1,12 @@
-export type AppView = 'dashboard' | 'products' | 'creative' | 'assets';
+export type AppView = 'dashboard' | 'products' | 'creative' | 'assets' | 'users';
+
+export interface AppUser {
+  id: string;
+  email: string;
+  name: string;
+  role: 'admin' | 'editor' | 'viewer';
+  createdAt?: string;
+}
 
 export interface Product {
   id: string;
