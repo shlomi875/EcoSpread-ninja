@@ -200,7 +200,7 @@ async function startServer() {
 
   // ─── AI / Gemini ───────────────────────────────────────────────────
   app.post('/api/ai/search', authenticate, async (req, res) => {
-    const { query, language, settings, model = 'gemini-2.0-flash', writingStyle = 'marketing', negativePrompts = '' } = req.body;
+    const { query, language, settings, model, writingStyle = 'marketing', negativePrompts = '', gender = 'unisex', image } = req.body;
     const brandConfigs = settings?.brands || [];
     const styleGuide: Record<string, string> = {
       marketing: 'high-converting marketing copy — focus on emotional benefits, urgency, and aspirational language',
@@ -209,13 +209,9 @@ async function startServer() {
       technical: 'technical and spec-focused — emphasize accuracy, measurements, and product details',
     };
     try {
-      // googleSearch tool is incompatible with responseMimeType/responseSchema.
-      // We ask for JSON in the prompt and extract it from the plain text response.
-      const response = await ai.models.generateContent({
-        model,
-        contents: `Research the watch "${query}" and provide structured data for an e-commerce store.
+      let prompt = `Research the product "${query}" and provide structured data for an e-commerce store.
 STRICT FORMATTING RULES:
-1. TITLE: Must be "שעון יד לגבר / לאישה, [Brand English] ([Brand Hebrew] if short) [Model Number]".
+1. TITLE: Must be "שעון יד ${language === 'he' ? (gender === 'women' ? 'לאישה' : 'לגבר') : (gender === 'women' ? 'for Women' : 'for Men')}, [Brand English] ([Brand Hebrew] if short) [Model Number]".
 2. SKU: Identical to model number. Remove dots (.), keep hyphens (-).
 3. PAYMENTS: Always "10 תשלומים ללא ריבית".
 4. DELIVERY: Always "3 ימי עסקים".
@@ -228,13 +224,37 @@ STRICT FORMATTING RULES:
 ${negativePrompts ? `STRICTLY AVOID mentioning any of the following in the description: ${negativePrompts}.` : ''}
 BRAND CONTEXT:
 ${brandConfigs.map((b: any) => `- ${b.brandName}: Warranty: ${b.warranty}, Min Price: ${b.minPrice}`).join('\n')}
+
+GENDER CONTEXT: This product is strictly for ${gender}. Ensure all descriptions and titles reflect this.
+
 Provide the response in ${language === 'he' ? 'Hebrew' : 'English'}.
 
-IMPORTANT: Return ONLY a valid JSON object with these fields (no markdown, no code blocks, start with {):
-{"name":"","sku":"","modelNumber":"","category":"","subCategory":"","gender":"","price":"","zapPrice":"","zapLink":"","targetPrice":"","description":"","shortDescription":"","manufacturer":"","warranty":"","deliveryTime":"","payments":"","movement":"","diameter":"","material":"","waterResistance":"","glass":"","filters":[],"seoKeywords":[]}`,
-        config: { tools: [{ googleSearch: {} }] },
-      });
-      const text = response.text?.trim() ?? '';
+IMPORTANT: Return ONLY a valid JSON object with these fields (no markdown, no code blocks, no "Sure", start with {):
+{"name":"","sku":"","modelNumber":"","category":"","subCategory":"","gender":"${gender}","price":"","zapPrice":"","zapLink":"","targetPrice":"","description":"","shortDescription":"","manufacturer":"","warranty":"","deliveryTime":"","payments":"","movement":"","diameter":"","material":"","waterResistance":"","glass":"","filters":[],"seoKeywords":[]}`;
+
+      let result;
+      if (image) {
+        // Vision request
+        const [mimeTypePart, base64Data] = image.split(',');
+        const mimeTypeMatch = mimeTypePart.match(/:(.*?);/);
+        const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/jpeg';
+        result = await ai.models.generateContent({
+          model: 'gemini-1.5-flash',
+          contents: [{ role: 'user', parts: [
+            { text: prompt },
+            { inlineData: { data: base64Data, mimeType } }
+          ]}]
+        });
+      } else {
+        // Standard search with tools
+        result = await ai.models.generateContent({
+          model: model || 'gemini-2.0-flash',
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          config: { tools: [{ googleSearch: {} }] },
+        });
+      }
+
+      const text = result.text?.trim() ?? '';
       const match = text.match(/\{[\s\S]*\}/);
       if (!match) throw new Error('No JSON found in response');
       res.json(JSON.parse(match[0]));
@@ -253,7 +273,9 @@ IMPORTANT: Return ONLY a valid JSON object with these fields (no markdown, no co
         contents: `Write a professional, high-converting product page content in ${language === 'he' ? 'Hebrew' : 'English'} for:
 Name: ${product.name}, Category: ${product.category}, Price: ${product.price}, Keywords: ${product.seoKeywords?.join(', ')}
 ${companyContext}
-Include a catchy headline, benefits, and technical specifications.`,
+Include a catchy headline, benefits, and technical specifications.
+
+STRICT RULE: Return ONLY the generated text. Do NOT include any introduction, "Sure", "Here is your content", or markdown code blocks. Just the content itself.`,
       });
       res.json({ content: response.text });
     } catch (e: any) {
@@ -286,6 +308,43 @@ Output: Provide ONLY the generated text, ready to copy and paste.`,
     } catch (e: any) {
       console.error('Gemini creative error:', e.message);
       res.status(500).json({ error: 'AI creative failed' });
+    }
+  });
+
+  app.post('/api/ai/seo-audit', authenticate, async (req, res) => {
+    const { products: auditProducts, language, model = 'gemini-2.0-flash' } = req.body;
+    try {
+      const prompt = `Analyze the following e-commerce products for SEO, AEO (Answer Engine Optimization), and GEO (Generative Engine Optimization).
+For each product, provide:
+1. A Score (0-100).
+2. Key improvements for Title, Description, and Keywords.
+3. An "Upgraded Content" version that is optimized for conversion and search engines.
+
+Products to analyze:
+${auditProducts.map((p: any) => `
+ID: ${p.id}
+Name: ${p.name}
+Description: ${p.description}
+Keywords: ${p.seoKeywords?.join(', ')}
+Specs: ${p.movement}, ${p.diameter}, ${p.material}
+`).join('\n---\n')}
+
+Language: ${language === 'he' ? 'Hebrew' : 'English'}
+
+STRICT FORMATTING: Return ONLY a valid JSON array of objects (one per product):
+[{"id": "", "score": 85, "suggestions": "...", "upgradedName": "...", "upgradedDescription": "...", "upgradedKeywords": []}]`;
+
+      const response = await ai.models.generateContent({
+        model,
+        contents: prompt,
+      });
+      const text = response.text || '';
+      const match = text.match(/\[[\s\S]*\]/);
+      if (!match) throw new Error('No JSON found in response');
+      res.json(JSON.parse(match[0]));
+    } catch (e: any) {
+      console.error('SEO Audit error:', e.message);
+      res.status(500).json({ error: 'SEO Audit failed' });
     }
   });
 

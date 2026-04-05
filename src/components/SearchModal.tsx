@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { X, Search, Sparkles, ChevronDown } from 'lucide-react';
+import { X, Search, Sparkles, ChevronDown, Camera, Image as ImageIcon } from 'lucide-react';
+import { useDropzone } from 'react-dropzone';
 import { motion, AnimatePresence } from 'motion/react';
 import { translations, Language } from '../i18n';
 import { AI_MODELS, DEFAULT_AI_MODEL, BADGE_COLORS } from '../lib/aiModels';
@@ -8,7 +9,7 @@ import { cn } from '../lib/utils';
 interface SearchModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSearch: (query: string, model: string, writingStyle: string, negativePrompts: string) => void;
+  onSearch: (query: string, model: string, writingStyle: string, negativePrompts: string, gender: string, image?: string) => void;
   isSearching: boolean;
   language: Language;
 }
@@ -27,13 +28,29 @@ export function SearchModal({ isOpen, onClose, onSearch, isSearching, language }
   const [showModels, setShowModels] = useState(false);
   const [writingStyle, setWritingStyle] = useState('marketing');
   const [negativePrompts, setNegativePrompts] = useState('');
+  const [gender, setGender] = useState('men');
+  const [image, setImage] = useState<string | undefined>();
 
   const selectedModel = AI_MODELS.find(m => m.id === model) ?? AI_MODELS[0];
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (query.trim()) onSearch(query, model, writingStyle, negativePrompts);
+    if (query.trim() || image) onSearch(query, model, writingStyle, negativePrompts, gender, image);
   };
+
+  // @ts-expect-error - react-dropzone type mismatch
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop: (files) => {
+      const file = files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = () => setImage(reader.result as string);
+        reader.readAsDataURL(file);
+      }
+    },
+    accept: { 'image/*': [] },
+    multiple: false
+  });
 
 
   return (
@@ -61,15 +78,28 @@ export function SearchModal({ isOpen, onClose, onSearch, isSearching, language }
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <p className="text-sm text-gray-500">{t.researchSub}</p>
 
-              <div className="relative">
-                <input
-                  autoFocus
-                  type="text"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder={t.researchPlaceholder}
-                  className="w-full pl-4 pr-4 py-3 border-2 border-gray-100 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-50/50 outline-none transition-all text-gray-900 font-medium"
-                />
+              <div className="flex gap-4">
+                <div className="relative flex-1">
+                  <input
+                    autoFocus
+                    type="text"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder={t.researchPlaceholder}
+                    className="w-full pl-4 pr-4 py-3 border-2 border-gray-100 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-50/50 outline-none transition-all text-gray-900 font-medium"
+                  />
+                </div>
+                <div 
+                  {...getRootProps()} 
+                  className={cn(
+                    "w-12 h-12 flex items-center justify-center border-2 border-dashed rounded-xl cursor-pointer transition-all shrink-0",
+                    image ? "border-green-500 bg-green-50" : (isDragActive ? "border-blue-500 bg-blue-50" : "border-gray-200 hover:border-blue-300")
+                  )}
+                  title={t.uploadProductImage}
+                >
+                  <input {...getInputProps()} />
+                  {image ? <ImageIcon className="w-5 h-5 text-green-600" /> : <Camera className="w-5 h-5 text-gray-400" />}
+                </div>
               </div>
 
               {/* Model selector */}
@@ -115,6 +145,31 @@ export function SearchModal({ isOpen, onClose, onSearch, isSearching, language }
                 </AnimatePresence>
               </div>
 
+              {/* Gender selector */}
+              <div className="grid grid-cols-4 gap-1.5">
+                {[
+                  { id: 'men', icon: '♂️' },
+                  { id: 'women', icon: '♀️' },
+                  { id: 'unisex', icon: '🚻' },
+                  { id: 'kids', icon: '🧒' }
+                ].map(g => (
+                  <button
+                    key={g.id}
+                    type="button"
+                    onClick={() => setGender(g.id)}
+                    className={cn(
+                      'py-2 rounded-xl text-xs font-bold border transition-all flex flex-col items-center gap-0.5',
+                      gender === g.id
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-gray-50 text-gray-600 border-gray-100 hover:border-blue-200'
+                    )}
+                  >
+                    <span className="text-sm">{g.icon}</span>
+                    <span>{(t as any)[`gender${g.id.charAt(0).toUpperCase() + g.id.slice(1)}`]}</span>
+                  </button>
+                ))}
+              </div>
+
               {/* Writing style */}
               <div className="grid grid-cols-4 gap-1.5">
                 {WRITING_STYLES.map(s => (
@@ -150,7 +205,7 @@ export function SearchModal({ isOpen, onClose, onSearch, isSearching, language }
 
               <button
                 type="submit"
-                disabled={!query.trim() || isSearching}
+                disabled={(!query.trim() && !image) || isSearching}
                 className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold shadow-lg shadow-blue-100 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
               >
                 {isSearching ? (

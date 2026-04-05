@@ -10,6 +10,7 @@ import { Dashboard } from './components/Dashboard';
 import { CreativeGenerator } from './components/CreativeGenerator';
 import { AssetsManager } from './components/AssetsManager';
 import { UsersManager } from './components/UsersManager';
+import { SEOMasterModal } from './components/SEOMasterModal';
 import { Product, CompanySettings, AppView } from './types';
 import { translations, Language } from './i18n';
 import { searchProductData } from './services/geminiService';
@@ -34,6 +35,8 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeView, setActiveView] = useState<AppView>('dashboard');
+  const [selectedAuditProducts, setSelectedAuditProducts] = useState<Product[]>([]);
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
 
   const t = translations[language];
 
@@ -124,13 +127,13 @@ export default function App() {
   // ── AI Research ───────────────────────────────────────────────────
   const handleSearchWeb = () => setIsSearchModalOpen(true);
 
-  const executeSearch = async (query: string, model?: string, writingStyle?: string, negativePrompts?: string) => {
+  const executeSearch = async (query: string, model?: string, writingStyle?: string, negativePrompts?: string, gender = 'unisex', image?: string) => {
     setIsSearching(true);
     try {
-      const data = await searchProductData(query, language, settings, model, writingStyle, negativePrompts);
+      const data = await searchProductData(query, language, settings, model, writingStyle, negativePrompts, gender, image);
       const newProduct: Product = {
         id: '', name: data.name || query, sku: data.sku || '', modelNumber: data.modelNumber || '',
-        category: data.category || 'Uncategorized', gender: data.gender || 'unisex',
+        category: data.category || 'Uncategorized', gender: (data.gender as any) || gender || 'unisex',
         price: data.price || '₪0', zapPrice: data.zapPrice, targetPrice: data.targetPrice,
         description: data.description || '', shortDescription: data.shortDescription || '',
         manufacturer: data.manufacturer || '', warranty: data.warranty || '',
@@ -169,6 +172,23 @@ export default function App() {
         showNotification('success', t.settingsSaved);
       }
     } catch { showNotification('error', 'שמירת הגדרות נכשלה.'); }
+  };
+
+  const handleApplyAudit = (updates: { id: string, name?: string, description?: string, seoKeywords?: string[] }[]) => {
+    setProducts(prev => prev.map(p => {
+      const up = updates.find(u => u.id === p.id);
+      if (up) {
+        return {
+          ...p,
+          name: up.name || p.name,
+          description: up.description || p.description,
+          seoKeywords: up.seoKeywords || p.seoKeywords,
+          lastUpdated: new Date().toISOString()
+        };
+      }
+      return p;
+    }));
+    showNotification('success', 'תוכן משודרג עודכן בהצלחה!');
   };
 
   // ── Filter Products ───────────────────────────────────────────────
@@ -242,6 +262,10 @@ export default function App() {
                 onDelete={handleDeleteProduct}
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
+                onAudit={(selected) => {
+                  setSelectedAuditProducts(selected);
+                  setIsAuditModalOpen(true);
+                }}
               />
             </div>
           </>
@@ -277,6 +301,13 @@ export default function App() {
       <SettingsModal
         isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)}
         settings={settings} onSave={handleSaveSettings} language={language}
+      />
+      <SEOMasterModal
+        isOpen={isAuditModalOpen}
+        onClose={() => setIsAuditModalOpen(false)}
+        selectedProducts={selectedAuditProducts}
+        language={language}
+        onApplyChanges={handleApplyAudit}
       />
 
       <AnimatePresence>

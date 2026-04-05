@@ -8,12 +8,14 @@ export async function searchProductData(
   settings?: CompanySettings,
   model = DEFAULT_AI_MODEL,
   writingStyle = 'marketing',
-  negativePrompts = ''
+  negativePrompts = '',
+  gender = 'unisex',
+  image?: string
 ): Promise<Partial<Product>> {
   const r = await fetch('/api/ai/search', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query, language: lang, settings, model, writingStyle, negativePrompts }),
+    body: JSON.stringify({ query, language: lang, settings, model, writingStyle, negativePrompts, gender, image }),
   });
   if (!r.ok) throw new Error('AI search failed');
   return r.json();
@@ -51,4 +53,18 @@ export async function generateCreativeContent(
   if (!r.ok) throw new Error('AI creative failed');
   const data = await r.json();
   return data.content;
+}
+
+export async function seoAudit(
+  products: Partial<Product>[],
+  lang: Language = 'he',
+  model = DEFAULT_AI_MODEL
+): Promise<any[]> {
+  const r = await fetch('/api/ai/seo-audit', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ products, language: lang, model }),
+  });
+  if (!r.ok) throw new Error('SEO audit failed');
+  return r.json();
 }
