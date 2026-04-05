@@ -3,7 +3,7 @@ import { X, Upload, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { translations, Language } from '../i18n';
 import { Asset } from '../types';
-import { useDropzone, DropzoneOptions } from 'react-dropzone';
+import { useDropzone } from 'react-dropzone';
 import { cn } from '../lib/utils';
 
 interface UploadAssetModalProps {
@@ -28,10 +28,17 @@ export function UploadAssetModal({ isOpen, onClose, onUpload, language, brands }
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
-      'image/*': ['.png', '.jpg', '.jpeg', '.svg'],
+      'image/*': ['.png', '.jpg', '.jpeg', '.svg', '.webp', '.gif', '.avif'],
       'video/*': ['.mp4', '.mov'],
     },
     maxFiles: 1,
+    maxSize: 20 * 1024 * 1024,
+    onDropRejected: (rejectedFiles: any[]) => {
+      const err = rejectedFiles[0]?.errors[0];
+      if (err?.code === 'file-too-large') alert('הקובץ גדול מדי (מקסימום 20MB)');
+      else if (err?.code === 'file-invalid-type') alert('סוג קובץ לא נתמך');
+      else alert('הקובץ נדחה: ' + err?.message);
+    },
     onDrop: (acceptedFiles) => {
       const file = acceptedFiles[0];
       if (file) {
@@ -54,7 +61,11 @@ export function UploadAssetModal({ isOpen, onClose, onUpload, language, brands }
       const fd = new FormData();
       fd.append('file', selectedFile);
       const uploadRes = await fetch('/api/upload', { method: 'POST', body: fd });
-      if (!uploadRes.ok) { alert('Upload failed'); return; }
+      if (!uploadRes.ok) {
+        const errData = await uploadRes.json().catch(() => ({}));
+        alert('Upload failed: ' + (errData.error || uploadRes.statusText));
+        return;
+      }
       const { url } = await uploadRes.json();
       const newAsset: Asset = {
         id: '',
