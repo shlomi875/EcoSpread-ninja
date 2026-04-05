@@ -102,8 +102,18 @@ export function SearchModal({ isOpen, onClose, onSearch, isSearching, language }
                 </div>
               </div>
 
-              {/* Model selector */}
+              {/* Model selector — locked to gemini-2.5-flash when image is active */}
               <div className="relative">
+                {image ? (
+                  <div className="w-full flex items-center justify-between px-4 py-2.5 bg-green-50 border border-green-200 rounded-xl text-sm font-medium text-green-800">
+                    <div className="flex items-center gap-2">
+                      <ImageIcon className="w-4 h-4 text-green-600" />
+                      <span>Gemini 2.5 Flash</span>
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold border bg-green-100 text-green-700 border-green-200">vision</span>
+                    </div>
+                    <span className="text-xs text-green-600">{language === 'he' ? 'זיהוי תמונה' : 'Image mode'}</span>
+                  </div>
+                ) : (
                 <button
                   type="button"
                   onClick={() => setShowModels((v: boolean) => !v)}
@@ -118,6 +128,7 @@ export function SearchModal({ isOpen, onClose, onSearch, isSearching, language }
                   </div>
                   <ChevronDown className={cn('w-4 h-4 text-gray-400 transition-transform', showModels && 'rotate-180')} />
                 </button>
+                )}
 
                 <AnimatePresence>
                   {showModels && (
@@ -135,9 +146,16 @@ export function SearchModal({ isOpen, onClose, onSearch, isSearching, language }
                           )}
                         >
                           <span>{m.label}</span>
-                          <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-bold border', BADGE_COLORS[m.badge])}>
-                            {m.badge}
-                          </span>
+                          <div className="flex items-center gap-1">
+                            {m.supportsVision && (
+                              <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold border bg-green-50 text-green-700 border-green-100">
+                                vision
+                              </span>
+                            )}
+                            <span className={cn('px-2 py-0.5 rounded-full text-[10px] font-bold border', BADGE_COLORS[m.badge])}>
+                              {m.badge}
+                            </span>
+                          </div>
                         </button>
                       ))}
                     </motion.div>

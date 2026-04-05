@@ -234,21 +234,22 @@ IMPORTANT: Return ONLY a valid JSON object with these fields (no markdown, no co
 
       let result;
       if (image) {
-        // Vision request
+        // Vision request — use gemini-2.5-flash (supports multimodal input)
+        // googleSearch tool is incompatible with inline image data, so we do vision-only
         const [mimeTypePart, base64Data] = image.split(',');
         const mimeTypeMatch = mimeTypePart.match(/:(.*?);/);
         const mimeType = mimeTypeMatch ? mimeTypeMatch[1] : 'image/jpeg';
         result = await ai.models.generateContent({
-          model: 'gemini-1.5-flash',
+          model: 'gemini-2.5-flash',
           contents: [{ role: 'user', parts: [
+            { inlineData: { data: base64Data, mimeType } },
             { text: prompt },
-            { inlineData: { data: base64Data, mimeType } }
           ]}]
         });
       } else {
-        // Standard search with tools
+        // Standard text search with Google Search grounding
         result = await ai.models.generateContent({
-          model: model || 'gemini-2.0-flash',
+          model: model || 'gemini-2.5-flash',
           contents: [{ role: 'user', parts: [{ text: prompt }] }],
           config: { tools: [{ googleSearch: {} }] },
         });

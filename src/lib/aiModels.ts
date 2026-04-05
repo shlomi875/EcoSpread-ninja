@@ -3,16 +3,21 @@ export interface AiModel {
   label: string;
   badge: 'stable' | 'preview' | 'lite' | 'pro';
   supportsSearch: boolean;
+  supportsVision: boolean;
 }
 
 export const AI_MODELS: AiModel[] = [
-  { id: 'gemini-2.0-flash',              label: 'Gemini 2.0 Flash',       badge: 'stable',  supportsSearch: true },
-  { id: 'gemini-3-flash-preview',        label: 'Gemini 3 Flash',         badge: 'preview', supportsSearch: true },
-  { id: 'gemini-3.1-flash-lite-preview', label: 'Gemini 3.1 Flash Lite',  badge: 'lite',    supportsSearch: true },
-  { id: 'gemini-3.1-pro-preview',        label: 'Gemini 3.1 Pro',         badge: 'pro',     supportsSearch: true },
+  { id: 'gemini-2.5-flash',              label: 'Gemini 2.5 Flash',       badge: 'stable',  supportsSearch: true,  supportsVision: true  },
+  { id: 'gemini-2.5-pro',               label: 'Gemini 2.5 Pro',         badge: 'pro',     supportsSearch: true,  supportsVision: true  },
+  { id: 'gemini-2.0-flash',             label: 'Gemini 2.0 Flash',       badge: 'stable',  supportsSearch: true,  supportsVision: false },
+  { id: 'gemini-3-flash-preview',       label: 'Gemini 3 Flash',         badge: 'preview', supportsSearch: true,  supportsVision: false },
+  { id: 'gemini-3.1-flash-lite-preview',label: 'Gemini 3.1 Flash Lite',  badge: 'lite',    supportsSearch: true,  supportsVision: false },
+  { id: 'gemini-3.1-pro-preview',       label: 'Gemini 3.1 Pro',         badge: 'pro',     supportsSearch: true,  supportsVision: false },
 ];
 
-export const DEFAULT_AI_MODEL = 'gemini-2.0-flash';
+// Default for text search; vision always uses gemini-2.5-flash
+export const DEFAULT_AI_MODEL = 'gemini-2.5-flash';
+export const VISION_MODEL = 'gemini-2.5-flash';
 
 export const BADGE_COLORS: Record<AiModel['badge'], string> = {
   stable:  'bg-green-50  text-green-700  border-green-100',
