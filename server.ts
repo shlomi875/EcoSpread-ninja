@@ -6,12 +6,14 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import multer from 'multer';
 import { existsSync, mkdirSync } from 'fs';
+import { GoogleGenAI, Type } from '@google/genai';
 import { db } from './src/db/client';
 import { users, products, assets, companySettings } from './src/db/schema';
 import { eq } from 'drizzle-orm';
 import 'dotenv/config';
 
 const __dirname = process.cwd();
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 const JWT_SECRET = process.env.JWT_SECRET || 'change-this-in-production';
 const UPLOADS_DIR = process.env.NODE_ENV === 'production'
@@ -189,6 +191,103 @@ async function startServer() {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
     const url = `/uploads/${req.file.filename}`;
     res.json({ url, filename: req.file.filename, size: req.file.size });
+  });
+
+  // ─── AI / Gemini ───────────────────────────────────────────────────
+  app.post('/api/ai/search', authenticate, async (req, res) => {
+    const { query, language, settings } = req.body;
+    const brandConfigs = settings?.brands || [];
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.0-flash',
+        contents: `Research the watch "${query}" and provide structured data for an e-commerce store.
+STRICT FORMATTING RULES:
+1. TITLE: Must be "שעון יד לגבר / לאישה, [Brand English] ([Brand Hebrew] if short) [Model Number]".
+2. SKU: Identical to model number. Remove dots (.), keep hyphens (-).
+3. PAYMENTS: Always "10 תשלומים ללא ריבית".
+4. DELIVERY: Always "3 ימי עסקים".
+5. ZAP: Search for the product on Zap.co.il. Provide the link and the lowest price.
+6. TARGET PRICE: Calculate as (Zap Lowest Price - ${settings?.targetPriceOffset || 5}).
+7. CATEGORIES: Parent: "מותגי שעונים" -> Sub: "[Brand Name]".
+8. DESCRIPTION: Short, high-converting marketing description (no technical specs).
+9. SEO KEYWORDS: 5-10 relevant keywords.
+10. FILTERS: Movement, Diameter, Material, Gender, Water Resistance, Glass.
+BRAND CONTEXT:
+${brandConfigs.map((b: any) => `- ${b.brandName}: Warranty: ${b.warranty}, Min Price: ${b.minPrice}`).join('\n')}
+Provide the response in ${language === 'he' ? 'Hebrew' : 'English'}.`,
+        config: {
+          tools: [{ googleSearch: {} }],
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              name: { type: Type.STRING }, sku: { type: Type.STRING }, modelNumber: { type: Type.STRING },
+              category: { type: Type.STRING }, subCategory: { type: Type.STRING },
+              gender: { type: Type.STRING }, price: { type: Type.STRING },
+              zapPrice: { type: Type.STRING }, zapLink: { type: Type.STRING },
+              targetPrice: { type: Type.STRING }, description: { type: Type.STRING },
+              shortDescription: { type: Type.STRING }, manufacturer: { type: Type.STRING },
+              warranty: { type: Type.STRING }, deliveryTime: { type: Type.STRING },
+              payments: { type: Type.STRING }, movement: { type: Type.STRING },
+              diameter: { type: Type.STRING }, material: { type: Type.STRING },
+              waterResistance: { type: Type.STRING }, glass: { type: Type.STRING },
+              filters: { type: Type.ARRAY, items: { type: Type.STRING } },
+              seoKeywords: { type: Type.ARRAY, items: { type: Type.STRING } },
+            },
+            required: ['name', 'sku', 'modelNumber', 'category', 'price', 'description', 'warranty', 'deliveryTime', 'payments'],
+          },
+        },
+      });
+      res.json(JSON.parse(response.text));
+    } catch (e: any) {
+      console.error('Gemini search error:', e.message);
+      res.status(500).json({ error: 'AI search failed' });
+    }
+  });
+
+  app.post('/api/ai/generate', authenticate, async (req, res) => {
+    const { product, language, settings } = req.body;
+    const companyContext = settings ? `Company: ${settings.name}, Phone: ${settings.phone}, Email: ${settings.email}, About: ${settings.about}` : '';
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.0-flash',
+        contents: `Write a professional, high-converting product page content in ${language === 'he' ? 'Hebrew' : 'English'} for:
+Name: ${product.name}, Category: ${product.category}, Price: ${product.price}, Keywords: ${product.seoKeywords?.join(', ')}
+${companyContext}
+Include a catchy headline, benefits, and technical specifications.`,
+      });
+      res.json({ content: response.text });
+    } catch (e: any) {
+      console.error('Gemini generate error:', e.message);
+      res.status(500).json({ error: 'AI generate failed' });
+    }
+  });
+
+  app.post('/api/ai/creative', authenticate, async (req, res) => {
+    const { product, platform, language, settings, customPrompt } = req.body;
+    const companyContext = settings ? `Company: ${settings.name}, Phone: ${settings.phone}, About: ${settings.about}` : '';
+    const platformPrompts: Record<string, string> = {
+      facebook: 'Write a high-engaging Facebook post with emojis, a catchy headline, benefits, and a clear call to action.',
+      instagram: 'Write a visually-descriptive Instagram caption with relevant hashtags and an inviting tone.',
+      twitter: 'Write a concise, punchy Twitter thread (up to 3 tweets) about this product.',
+      telegram: 'Write a professional update for a Telegram channel, highlighting key features and price.',
+      whatsapp: 'Write a friendly, personal-sounding WhatsApp message to send to customers or groups.',
+      custom: customPrompt || 'Write a creative marketing text for this product.',
+    };
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.0-flash',
+        contents: `Product: ${product.name}, Price: ${product.price}, Description: ${product.description}
+${companyContext}
+Task: ${platformPrompts[platform] || platformPrompts.custom}
+Language: ${language === 'he' ? 'Hebrew' : 'English'}
+Output: Provide ONLY the generated text, ready to copy and paste.`,
+      });
+      res.json({ content: response.text });
+    } catch (e: any) {
+      console.error('Gemini creative error:', e.message);
+      res.status(500).json({ error: 'AI creative failed' });
+    }
   });
 
   // ─── Vite / Static ─────────────────────────────────────────────────
