@@ -1,5 +1,6 @@
 import express from 'express';
 import { createServer as createViteServer } from 'vite';
+import { randomUUID } from 'crypto';
 import path from 'path';
 import cookieParser from 'cookie-parser';
 import jwt from 'jsonwebtoken';
@@ -101,8 +102,10 @@ async function startServer() {
   });
 
   app.post('/api/products', authenticate, requireRole('admin', 'editor'), async (req, res) => {
+    const { id, ...rest } = req.body;
     const [row] = await db.insert(products).values({
-      ...req.body,
+      id: id || randomUUID(),
+      ...rest,
       lastUpdated: new Date(),
     }).returning();
     res.json(row);

@@ -176,7 +176,7 @@ export function CreativeGenerator({ language, products, settings }: CreativeGene
               {showModels && (
                 <motion.div
                   initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
-                  className="absolute top-full mt-1 left-0 right-0 bg-white border border-gray-100 rounded-xl shadow-lg z-10 overflow-hidden"
+                  className="absolute top-full mt-1 left-0 right-0 bg-white border border-gray-100 rounded-xl shadow-lg z-20 overflow-y-auto max-h-56"
                 >
                   {AI_MODELS.map(m => (
                     <button
