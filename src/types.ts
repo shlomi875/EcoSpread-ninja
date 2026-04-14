@@ -70,6 +70,7 @@ export interface Product {
   subCategory?: string;
   gender: 'men' | 'women' | 'unisex' | 'kids';
   price: string;
+  salePrice?: string;
   zapPrice?: string;
   zapLink?: string;
   targetPrice?: string;

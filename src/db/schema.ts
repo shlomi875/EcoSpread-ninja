@@ -18,6 +18,7 @@ export const products = pgTable('products', {
   subCategory: text('sub_category'),
   gender: text('gender').default('unisex'),
   price: text('price'),
+  salePrice: text('sale_price'),
   zapPrice: text('zap_price'),
   zapLink: text('zap_link'),
   targetPrice: text('target_price'),

@@ -469,7 +469,8 @@ STRICT FORMATTING: Return ONLY a valid JSON array of objects (one per product):
     };
 
     const FIELDS = ['description', 'shortDescription', 'movement', 'diameter', 'material', 'gender', 'waterResistance', 'glass', 'seoTitle', 'seoDescription', 'seoKeywords'] as const;
-    const missing = FIELDS.filter(f => !product[f]?.trim());
+    const missing: string[] = FIELDS.filter(f => !product[f]?.trim());
+    if (!missing.includes('name')) missing.push('name'); // Always rewrite name
 
     if (!missing.length) return res.json({ ...product, _status: 'skipped' });
 
@@ -506,9 +507,10 @@ STRICT RULES:
 11. diameter: e.g. "42 מ\"מ", "38 מ\"מ"
 12. material: e.g. "נירוסטה", "עור", "סיליקון"
 13. Infer missing watch specs from the product name/model number using your knowledge
+14. name: Write an appealing, clean title combining brand, model and gender, max 60 chars.
 
 Return ONLY valid JSON (no markdown, no \`\`\`, no intro text, start with {):
-{"description":"","shortDescription":"","movement":"","diameter":"","material":"","gender":"","waterResistance":"","glass":"","seoTitle":"","seoDescription":"","seoKeywords":""}`;
+{"name":"","description":"","shortDescription":"","movement":"","diameter":"","material":"","gender":"","waterResistance":"","glass":"","seoTitle":"","seoDescription":"","seoKeywords":""}`;
 
     try {
       const result = await ai.models.generateContent({ model, contents: prompt });

@@ -121,6 +121,7 @@ function mapEshopToProduct(p: EshopProduct): Product {
     gender: (p.gender === 'Men' || p.gender === 'גברים') ? 'men' : 
             (p.gender === 'Women' || p.gender === 'נשים') ? 'women' : 'unisex',
     price: p.regularPrice || p.salePrice || '₪0',
+    salePrice: p.salePrice || undefined,
     zapPrice: p.zapMinPrice,
     zapLink: p.zapUrl,
     description: p.description || '',
@@ -617,6 +618,7 @@ export function EshopPipeline({ language, settings, onSaveToInventory }: EshopPi
   const [writingStyle, setWritingStyle] = useState('marketing');
   const [page, setPage] = useState(0);
   const [selectedExportIds, setSelectedExportIds] = useState<Set<number>>(new Set());
+  const [selectedEnrichIds, setSelectedEnrichIds] = useState<Set<number>>(new Set());
   const PAGE_SIZE = 20;
   const runningRef = useRef(false);
 
@@ -653,7 +655,12 @@ export function EshopPipeline({ language, settings, onSaveToInventory }: EshopPi
   // ── Enrichment ───────────────────────────────────────────────────────────────
   const startEnrichment = async () => {
     runningRef.current = true; setIsEnriching(true);
-    const queue = filteredProducts.filter(p => needsEnrichment(p) && p._status !== 'done' && p._status !== 'skipped');
+    let queue = filteredProducts.filter(p => p._status !== 'done' && p._status !== 'skipped');
+    if (selectedEnrichIds.size > 0) {
+      queue = queue.filter(p => selectedEnrichIds.has(p._idx));
+    } else {
+      queue = queue.filter(p => needsEnrichment(p));
+    }
     setEnrichProgress({ current: 0, total: queue.length, currentName: '' });
     for (let i = 0; i < queue.length; i++) {
       if (!runningRef.current) break;
@@ -858,8 +865,8 @@ export function EshopPipeline({ language, settings, onSaveToInventory }: EshopPi
                 </select>
               </div>
               <div className="flex flex-col justify-center bg-indigo-50 rounded-xl px-4 py-3 text-center">
-                <p className="text-2xl font-black text-indigo-700">{toEnrich.length}</p>
-                <p className="text-xs text-indigo-500 font-medium">{t.needsEnrichment}</p>
+                <p className="text-2xl font-black text-indigo-700">{selectedEnrichIds.size > 0 ? selectedEnrichIds.size : toEnrich.length}</p>
+                <p className="text-xs text-indigo-500 font-medium">{selectedEnrichIds.size > 0 ? (language === 'he' ? 'נבחרו להעשרה' : 'Selected') : t.needsEnrichment}</p>
               </div>
             </div>
           </div>
@@ -888,7 +895,12 @@ export function EshopPipeline({ language, settings, onSaveToInventory }: EshopPi
               <div className="overflow-auto flex-1">
                 <table className="w-full text-xs" dir={isRTL ? 'rtl' : 'ltr'}>
                   <thead className="sticky top-0 bg-gray-50 border-b z-10">
-                    <tr>{['Status', 'SKU', t.productName, 'Missing', t.description].map(h => (
+                    <tr>
+                      <th className="px-4 py-3"><input type="checkbox" checked={selectedEnrichIds.size > 0 && selectedEnrichIds.size === pageProducts.length} onChange={() => {
+                        if (selectedEnrichIds.size === pageProducts.length) setSelectedEnrichIds(new Set());
+                        else setSelectedEnrichIds(new Set(pageProducts.map(p => p._idx)));
+                      }} className="rounded border-gray-300" /></th>
+                      {['Status', 'SKU', t.productName, 'Missing', t.description].map(h => (
                       <th key={h} className={cn('px-4 py-3 font-semibold text-gray-500 uppercase', isRTL ? 'text-right' : 'text-left')}>{h}</th>
                     ))}<th className="px-4 py-3" /></tr>
                   </thead>
@@ -898,6 +910,16 @@ export function EshopPipeline({ language, settings, onSaveToInventory }: EshopPi
                         className={cn('transition-colors cursor-pointer',
                           selectedProduct?._idx === p._idx ? 'bg-indigo-50 border-s-2 border-indigo-500' : 'hover:bg-gray-50',
                           p._status === 'enriching' && 'bg-blue-50', p._status === 'done' && 'bg-green-50/30', p._status === 'error' && 'bg-red-50/30')}>
+                        <td className="px-4 py-2.5" onClick={e => e.stopPropagation()}>
+                          <input type="checkbox" checked={selectedEnrichIds.has(p._idx)} onChange={() => {
+                            setSelectedEnrichIds(prev => {
+                              const next = new Set(prev);
+                              if (next.has(p._idx)) next.delete(p._idx);
+                              else next.add(p._idx);
+                              return next;
+                            });
+                          }} className="rounded border-gray-300" />
+                        </td>
                         <td className="px-4 py-2.5"><StatusBadge status={p._status} /></td>
                         <td className="px-4 py-2.5 font-mono text-gray-400">{p.itemId}</td>
                         <td className="px-4 py-2.5 font-medium text-gray-800 max-w-[160px] truncate">{p.name}</td>
