@@ -1,0 +1,12 @@
+🚀 EcoSpread running on http://localhost:3000 (port 3000)
+PayloadTooLargeError: request entity too large
+at readStream (/app/dist-server/server.cjs:4964:21)
+at getRawBody (/app/dist-server/server.cjs:4945:16)
+at read (/app/dist-server/server.cjs:5279:7)
+at jsonParser (/app/dist-server/server.cjs:14296:9)
+at Layer.handle [as handle_request] (/app/dist-server/server.cjs:18592:9)
+at trim_prefix (/app/dist-server/server.cjs:18991:17)
+at /app/dist-server/server.cjs:18965:13
+at Function.process_params (/app/dist-server/server.cjs:18999:16)
+at next (/app/dist-server/server.cjs:18959:15)
+at expressInit (/app/dist-server/server.cjs:19215:9)

@@ -103,7 +103,7 @@ Password: shlomist69
 8. Note the **Container Name** (looks like: `ecospread-prod-db-postgres`)
 9. Your internal DATABASE_URL will be:
    ```
-   postgresql://ecospread_user:PASSWORD@CONTAINER_NAME:5432/ecospread
+   postgres://postgres:6Ntchx9EhzYrHtWPZvQJbKqTRSeDAes9PlxJ7DMz4PCW8xJfWoz2iugjopB65qCM@lg84skoo4gw8kcok8wkkk08o:5432/postgres
    ```
 
 ---

@@ -1,0 +1,268 @@
+2026-Apr-04 22:57:06.318460 Starting deployment of ghcr.io/shlomi875/ecospread-ninja:latest to localhost.
+2026-Apr-04 22:57:07.147871 Preparing container with helper image: ghcr.io/coollabsio/coolify-helper:1.0.12
+2026-Apr-04 22:57:07.612634 [CMD]: docker stop -t 30 wow4k0s0so44gokwckcc4ksw
+2026-Apr-04 22:57:07.612634 Error response from daemon: No such container: wow4k0s0so44gokwckcc4ksw
+2026-Apr-04 22:57:08.014431 [CMD]: docker run -d --network coolify --name wow4k0s0so44gokwckcc4ksw --rm -v /var/run/docker.sock:/var/run/docker.sock ghcr.io/coollabsio/coolify-helper:1.0.12
+2026-Apr-04 22:57:08.014431 2dd98ed171bdbad68bee8f9a3375cd63fa78bdf618edf0ed0e097a7fc0a2f9dc
+2026-Apr-04 22:57:10.210112 Creating .env file with runtime variables for container.
+2026-Apr-04 22:57:10.986432 ----------------------------------------
+2026-Apr-04 22:57:10.995073 Rolling update started.
+2026-Apr-04 22:57:11.365184 Pulling latest images from the registry.
+2026-Apr-04 22:57:11.876531 [CMD]: docker exec wow4k0s0so44gokwckcc4ksw bash -c 'docker compose --project-name sow84kgossgoc44ok4s8kss4 --project-directory /artifacts/wow4k0s0so44gokwckcc4ksw pull'
+2026-Apr-04 22:57:11.876531 sow84kgossgoc44ok4s8kss4-225705386835 Pulling
+2026-Apr-04 22:57:12.683824 589002ba0eae Already exists
+2026-Apr-04 22:57:12.688438 d7f6aca05b78 Already exists
+2026-Apr-04 22:57:12.690962 62e0e1181d88 Already exists
+2026-Apr-04 22:57:12.693954 c7734204880f Already exists
+2026-Apr-04 22:57:12.697597 fa79c563bf68 Pulling fs layer
+2026-Apr-04 22:57:12.697597 1486d24a8b31 Pulling fs layer
+2026-Apr-04 22:57:12.697597 942d2771621c Pulling fs layer
+2026-Apr-04 22:57:12.697597 b186826a57d6 Pulling fs layer
+2026-Apr-04 22:57:12.697597 0550987e8dd8 Pulling fs layer
+2026-Apr-04 22:57:12.697597 093f46e9934d Pulling fs layer
+2026-Apr-04 22:57:12.697597 2e20b5923ecf Pulling fs layer
+2026-Apr-04 22:57:12.697597 bc8ffdac5dd0 Pulling fs layer
+2026-Apr-04 22:57:12.697597 089315605bcb Pulling fs layer
+2026-Apr-04 22:57:12.697597 c6f3aea315d5 Pulling fs layer
+2026-Apr-04 22:57:12.697597 b186826a57d6 Waiting
+2026-Apr-04 22:57:12.697597 0550987e8dd8 Waiting
+2026-Apr-04 22:57:12.697597 093f46e9934d Waiting
+2026-Apr-04 22:57:12.697597 2e20b5923ecf Waiting
+2026-Apr-04 22:57:12.697597 bc8ffdac5dd0 Waiting
+2026-Apr-04 22:57:12.697597 089315605bcb Waiting
+2026-Apr-04 22:57:12.697597 c6f3aea315d5 Waiting
+2026-Apr-04 22:57:13.031672 1486d24a8b31 Downloading [==================================================>] 93B/93B
+2026-Apr-04 22:57:13.031672 1486d24a8b31 Download complete
+2026-Apr-04 22:57:13.051640 fa79c563bf68 Downloading [> ] 15.16kB/1.464MB
+2026-Apr-04 22:57:13.068186 942d2771621c Downloading [==================================================>] 978B/978B
+2026-Apr-04 22:57:13.068186 942d2771621c Verifying Checksum
+2026-Apr-04 22:57:13.068186 942d2771621c Download complete
+2026-Apr-04 22:57:13.152608 fa79c563bf68 Downloading [===================> ] 557.1kB/1.464MB
+2026-Apr-04 22:57:13.239308 fa79c563bf68 Verifying Checksum
+2026-Apr-04 22:57:13.241494 fa79c563bf68 Download complete
+2026-Apr-04 22:57:13.241494 fa79c563bf68 Extracting [=> ] 32.77kB/1.464MB
+2026-Apr-04 22:57:13.264148 fa79c563bf68 Extracting [==================================================>] 1.464MB/1.464MB
+2026-Apr-04 22:57:13.264148 fa79c563bf68 Extracting [==================================================>] 1.464MB/1.464MB
+2026-Apr-04 22:57:13.275028 fa79c563bf68 Pull complete
+2026-Apr-04 22:57:13.277769 1486d24a8b31 Extracting [==================================================>] 93B/93B
+2026-Apr-04 22:57:13.279743 1486d24a8b31 Extracting [==================================================>] 93B/93B
+2026-Apr-04 22:57:13.289987 1486d24a8b31 Pull complete
+2026-Apr-04 22:57:13.292216 942d2771621c Extracting [==================================================>] 978B/978B
+2026-Apr-04 22:57:13.294566 942d2771621c Extracting [==================================================>] 978B/978B
+2026-Apr-04 22:57:13.307992 942d2771621c Pull complete
+2026-Apr-04 22:57:13.356789 b186826a57d6 Downloading [=> ] 1.378kB/48.27kB
+2026-Apr-04 22:57:13.363460 b186826a57d6 Verifying Checksum
+2026-Apr-04 22:57:13.363460 b186826a57d6 Download complete
+2026-Apr-04 22:57:13.363460 b186826a57d6 Extracting [=================================> ] 32.77kB/48.27kB
+2026-Apr-04 22:57:13.365987 b186826a57d6 Extracting [==================================================>] 48.27kB/48.27kB
+2026-Apr-04 22:57:13.377520 b186826a57d6 Pull complete
+2026-Apr-04 22:57:13.549227 0550987e8dd8 Downloading [> ] 540.7kB/52.46MB
+2026-Apr-04 22:57:13.584976 093f46e9934d Downloading [> ] 2.756kB/235.8kB
+2026-Apr-04 22:57:13.601048 093f46e9934d Downloading [==================================================>] 235.8kB/235.8kB
+2026-Apr-04 22:57:13.601048 093f46e9934d Verifying Checksum
+2026-Apr-04 22:57:13.601048 093f46e9934d Download complete
+2026-Apr-04 22:57:13.653533 0550987e8dd8 Downloading [====> ] 4.309MB/52.46MB
+2026-Apr-04 22:57:13.695917 2e20b5923ecf Downloading [> ] 5.512kB/463.3kB
+2026-Apr-04 22:57:13.718340 2e20b5923ecf Downloading [==================================================>] 463.3kB/463.3kB
+2026-Apr-04 22:57:13.718340 2e20b5923ecf Verifying Checksum
+2026-Apr-04 22:57:13.718340 2e20b5923ecf Download complete
+2026-Apr-04 22:57:13.753930 0550987e8dd8 Downloading [=====> ] 5.931MB/52.46MB
+2026-Apr-04 22:57:13.870210 0550987e8dd8 Downloading [========> ] 9.159MB/52.46MB
+2026-Apr-04 22:57:13.930142 bc8ffdac5dd0 Downloading [======================================> ] 1.378kB/1.775kB
+2026-Apr-04 22:57:13.930142 bc8ffdac5dd0 Downloading [==================================================>] 1.775kB/1.775kB
+2026-Apr-04 22:57:13.930142 bc8ffdac5dd0 Verifying Checksum
+2026-Apr-04 22:57:13.930142 bc8ffdac5dd0 Download complete
+2026-Apr-04 22:57:13.981140 0550987e8dd8 Downloading [===========> ] 11.85MB/52.46MB
+2026-Apr-04 22:57:14.057076 089315605bcb Downloading [==========================================> ] 1.378kB/1.639kB
+2026-Apr-04 22:57:14.057076 089315605bcb Downloading [==================================================>] 1.639kB/1.639kB
+2026-Apr-04 22:57:14.057076 089315605bcb Verifying Checksum
+2026-Apr-04 22:57:14.057076 089315605bcb Download complete
+2026-Apr-04 22:57:14.092373 0550987e8dd8 Downloading [=============> ] 14.53MB/52.46MB
+2026-Apr-04 22:57:14.200881 0550987e8dd8 Downloading [================> ] 17.18MB/52.46MB
+2026-Apr-04 22:57:14.253780 c6f3aea315d5 Downloading [==================================================>] 123B/123B
+2026-Apr-04 22:57:14.253780 c6f3aea315d5 Verifying Checksum
+2026-Apr-04 22:57:14.253780 c6f3aea315d5 Download complete
+2026-Apr-04 22:57:14.319610 0550987e8dd8 Downloading [===================> ] 20.39MB/52.46MB
+2026-Apr-04 22:57:14.430198 0550987e8dd8 Downloading [=====================> ] 23.08MB/52.46MB
+2026-Apr-04 22:57:14.546897 0550987e8dd8 Downloading [=========================> ] 26.3MB/52.46MB
+2026-Apr-04 22:57:14.658630 0550987e8dd8 Downloading [===========================> ] 28.98MB/52.46MB
+2026-Apr-04 22:57:14.768278 0550987e8dd8 Downloading [==============================> ] 31.64MB/52.46MB
+2026-Apr-04 22:57:14.884245 0550987e8dd8 Downloading [=================================> ] 34.86MB/52.46MB
+2026-Apr-04 22:57:14.995344 0550987e8dd8 Downloading [===================================> ] 37.51MB/52.46MB
+2026-Apr-04 22:57:15.107133 0550987e8dd8 Downloading [======================================> ] 40.2MB/52.46MB
+2026-Apr-04 22:57:15.224320 0550987e8dd8 Downloading [=========================================> ] 43.42MB/52.46MB
+2026-Apr-04 22:57:15.335206 0550987e8dd8 Downloading [===========================================> ] 46.1MB/52.46MB
+2026-Apr-04 22:57:15.443435 0550987e8dd8 Downloading [==============================================> ] 48.77MB/52.46MB
+2026-Apr-04 22:57:15.561594 0550987e8dd8 Downloading [=================================================> ] 51.99MB/52.46MB
+2026-Apr-04 22:57:15.567862 0550987e8dd8 Verifying Checksum
+2026-Apr-04 22:57:15.567862 0550987e8dd8 Download complete
+2026-Apr-04 22:57:15.650003 0550987e8dd8 Extracting [> ] 557.1kB/52.46MB
+2026-Apr-04 22:57:15.772058 0550987e8dd8 Extracting [=> ] 1.671MB/52.46MB
+2026-Apr-04 22:57:15.878448 0550987e8dd8 Extracting [========> ] 8.913MB/52.46MB
+2026-Apr-04 22:57:15.997854 0550987e8dd8 Extracting [============> ] 13.37MB/52.46MB
+2026-Apr-04 22:57:16.125155 0550987e8dd8 Extracting [=================> ] 18.38MB/52.46MB
+2026-Apr-04 22:57:16.469672 0550987e8dd8 Extracting [==================> ] 19.5MB/52.46MB
+2026-Apr-04 22:57:16.679398 0550987e8dd8 Extracting [========================> ] 25.62MB/52.46MB
+2026-Apr-04 22:57:16.932790 0550987e8dd8 Extracting [========================> ] 26.18MB/52.46MB
+2026-Apr-04 22:57:17.146685 0550987e8dd8 Extracting [=========================> ] 26.74MB/52.46MB
+2026-Apr-04 22:57:17.266806 0550987e8dd8 Extracting [==========================> ] 27.3MB/52.46MB
+2026-Apr-04 22:57:17.444839 0550987e8dd8 Extracting [===========================> ] 28.97MB/52.46MB
+2026-Apr-04 22:57:17.546815 0550987e8dd8 Extracting [===============================> ] 33.42MB/52.46MB
+2026-Apr-04 22:57:18.173459 0550987e8dd8 Extracting [====================================> ] 38.44MB/52.46MB
+2026-Apr-04 22:57:18.603941 0550987e8dd8 Extracting [=====================================> ] 38.99MB/52.46MB
+2026-Apr-04 22:57:18.720334 0550987e8dd8 Extracting [=======================================> ] 41.22MB/52.46MB
+2026-Apr-04 22:57:18.885491 0550987e8dd8 Extracting [========================================> ] 42.34MB/52.46MB
+2026-Apr-04 22:57:18.989434 0550987e8dd8 Extracting [==========================================> ] 44.56MB/52.46MB
+2026-Apr-04 22:57:19.123676 0550987e8dd8 Extracting [============================================> ] 46.24MB/52.46MB
+2026-Apr-04 22:57:19.212211 0550987e8dd8 Extracting [==================================================>] 52.46MB/52.46MB
+2026-Apr-04 22:57:19.295946 0550987e8dd8 Pull complete
+2026-Apr-04 22:57:19.300455 093f46e9934d Extracting [======> ] 32.77kB/235.8kB
+2026-Apr-04 22:57:19.306202 093f46e9934d Extracting [==================================================>] 235.8kB/235.8kB
+2026-Apr-04 22:57:19.309117 093f46e9934d Extracting [==================================================>] 235.8kB/235.8kB
+2026-Apr-04 22:57:19.316332 093f46e9934d Pull complete
+2026-Apr-04 22:57:19.319813 2e20b5923ecf Extracting [===> ] 32.77kB/463.3kB
+2026-Apr-04 22:57:19.335328 2e20b5923ecf Extracting [==================================================>] 463.3kB/463.3kB
+2026-Apr-04 22:57:19.345866 2e20b5923ecf Pull complete
+2026-Apr-04 22:57:19.349409 bc8ffdac5dd0 Extracting [==================================================>] 1.775kB/1.775kB
+2026-Apr-04 22:57:19.352446 bc8ffdac5dd0 Extracting [==================================================>] 1.775kB/1.775kB
+2026-Apr-04 22:57:19.363795 bc8ffdac5dd0 Pull complete
+2026-Apr-04 22:57:19.367463 089315605bcb Extracting [==================================================>] 1.639kB/1.639kB
+2026-Apr-04 22:57:19.370801 089315605bcb Extracting [==================================================>] 1.639kB/1.639kB
+2026-Apr-04 22:57:19.380437 089315605bcb Pull complete
+2026-Apr-04 22:57:19.383933 c6f3aea315d5 Extracting [==================================================>] 123B/123B
+2026-Apr-04 22:57:19.386415 c6f3aea315d5 Extracting [==================================================>] 123B/123B
+2026-Apr-04 22:57:19.396667 c6f3aea315d5 Pull complete
+2026-Apr-04 22:57:19.409048 sow84kgossgoc44ok4s8kss4-225705386835 Pulled
+2026-Apr-04 22:57:19.978727 [CMD]: docker exec wow4k0s0so44gokwckcc4ksw bash -c ' docker compose --project-name sow84kgossgoc44ok4s8kss4 --project-directory /artifacts/wow4k0s0so44gokwckcc4ksw up --build -d'
+2026-Apr-04 22:57:19.978727 Container sow84kgossgoc44ok4s8kss4-225705386835 Creating
+2026-Apr-04 22:57:20.173565 sow84kgossgoc44ok4s8kss4-225705386835 Your kernel does not support memory swappiness capabilities or the cgroup is not mounted. Memory swappiness discarded.
+2026-Apr-04 22:57:20.178066 Container sow84kgossgoc44ok4s8kss4-225705386835 Created
+2026-Apr-04 22:57:20.178066 Container sow84kgossgoc44ok4s8kss4-225705386835 Starting
+2026-Apr-04 22:57:20.457735 Container sow84kgossgoc44ok4s8kss4-225705386835 Started
+2026-Apr-04 22:57:20.472241 New container started.
+2026-Apr-04 22:57:20.479461 Waiting for healthcheck to pass on the new container.
+2026-Apr-04 22:57:20.485579 Healthcheck URL (inside the container): GET: http://localhost:3000/api/health
+2026-Apr-04 22:57:20.491122 Waiting for the start period (40 seconds) before starting healthcheck.
+2026-Apr-04 22:58:00.907474 [CMD]: docker inspect --format='{{json .State.Health.Status}}' sow84kgossgoc44ok4s8kss4-225705386835
+2026-Apr-04 22:58:00.907474 "unhealthy"
+2026-Apr-04 22:58:01.325171 [CMD]: docker inspect --format='{{json .State.Health.Log}}' sow84kgossgoc44ok4s8kss4-225705386835
+2026-Apr-04 22:58:01.325171 []
+2026-Apr-04 22:58:01.333356 Attempt 1 of 3 | Healthcheck status: "unhealthy"
+2026-Apr-04 22:58:01.344055 New container is unhealthy.
+2026-Apr-04 22:58:01.352874 ----------------------------------------
+2026-Apr-04 22:58:01.361424 Container logs:
+2026-Apr-04 22:58:01.718077 [CMD]: docker logs -n 100 sow84kgossgoc44ok4s8kss4-225705386835
+2026-Apr-04 22:58:01.718077 ^
+2026-Apr-04 22:58:01.718077
+2026-Apr-04 22:58:01.718077 TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type string or an instance of URL. Received undefined
+2026-Apr-04 22:58:01.718077 at fileURLToPath (node:internal/url:1487:11)
+2026-Apr-04 22:58:01.718077 at Object.<anonymous> (/app/dist-server/server.cjs:49648:47)
+2026-Apr-04 22:58:01.718077 at Module._compile (node:internal/modules/cjs/loader:1521:14)
+2026-Apr-04 22:58:01.718077 at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+2026-Apr-04 22:58:01.718077 at Module.load (node:internal/modules/cjs/loader:1266:32)
+2026-Apr-04 22:58:01.718077 at Module._load (node:internal/modules/cjs/loader:1091:12)
+2026-Apr-04 22:58:01.718077 at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+2026-Apr-04 22:58:01.718077 at node:internal/main/run_main_module:28:49 {
+2026-Apr-04 22:58:01.718077 code: 'ERR_INVALID_ARG_TYPE'
+2026-Apr-04 22:58:01.718077 }
+2026-Apr-04 22:58:01.718077
+2026-Apr-04 22:58:01.718077 Node.js v20.20.2
+2026-Apr-04 22:58:01.718077 node:internal/url:1487
+2026-Apr-04 22:58:01.718077 throw new ERR_INVALID_ARG_TYPE('path', ['string', 'URL'], path);
+2026-Apr-04 22:58:01.718077 ^
+2026-Apr-04 22:58:01.718077
+2026-Apr-04 22:58:01.718077 TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type string or an instance of URL. Received undefined
+2026-Apr-04 22:58:01.718077 at fileURLToPath (node:internal/url:1487:11)
+2026-Apr-04 22:58:01.718077 at Object.<anonymous> (/app/dist-server/server.cjs:49648:47)
+2026-Apr-04 22:58:01.718077 at Module._compile (node:internal/modules/cjs/loader:1521:14)
+2026-Apr-04 22:58:01.718077 at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+2026-Apr-04 22:58:01.718077 at Module.load (node:internal/modules/cjs/loader:1266:32)
+2026-Apr-04 22:58:01.718077 at Module._load (node:internal/modules/cjs/loader:1091:12)
+2026-Apr-04 22:58:01.718077 at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+2026-Apr-04 22:58:01.718077 at node:internal/main/run_main_module:28:49 {
+2026-Apr-04 22:58:01.718077 code: 'ERR_INVALID_ARG_TYPE'
+2026-Apr-04 22:58:01.718077 }
+2026-Apr-04 22:58:01.718077
+2026-Apr-04 22:58:01.718077 Node.js v20.20.2
+2026-Apr-04 22:58:01.718077 node:internal/url:1487
+2026-Apr-04 22:58:01.718077 throw new ERR_INVALID_ARG_TYPE('path', ['string', 'URL'], path);
+2026-Apr-04 22:58:01.718077 ^
+2026-Apr-04 22:58:01.718077
+2026-Apr-04 22:58:01.718077 TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type string or an instance of URL. Received undefined
+2026-Apr-04 22:58:01.718077 at fileURLToPath (node:internal/url:1487:11)
+2026-Apr-04 22:58:01.718077 at Object.<anonymous> (/app/dist-server/server.cjs:49648:47)
+2026-Apr-04 22:58:01.718077 at Module._compile (node:internal/modules/cjs/loader:1521:14)
+2026-Apr-04 22:58:01.718077 at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+2026-Apr-04 22:58:01.718077 at Module.load (node:internal/modules/cjs/loader:1266:32)
+2026-Apr-04 22:58:01.718077 at Module._load (node:internal/modules/cjs/loader:1091:12)
+2026-Apr-04 22:58:01.718077 at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+2026-Apr-04 22:58:01.718077 at node:internal/main/run_main_module:28:49 {
+2026-Apr-04 22:58:01.718077 code: 'ERR_INVALID_ARG_TYPE'
+2026-Apr-04 22:58:01.718077 }
+2026-Apr-04 22:58:01.718077
+2026-Apr-04 22:58:01.718077 Node.js v20.20.2
+2026-Apr-04 22:58:01.718077 node:internal/url:1487
+2026-Apr-04 22:58:01.718077 throw new ERR_INVALID_ARG_TYPE('path', ['string', 'URL'], path);
+2026-Apr-04 22:58:01.718077 ^
+2026-Apr-04 22:58:01.718077
+2026-Apr-04 22:58:01.718077 TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type string or an instance of URL. Received undefined
+2026-Apr-04 22:58:01.718077 at fileURLToPath (node:internal/url:1487:11)
+2026-Apr-04 22:58:01.718077 at Object.<anonymous> (/app/dist-server/server.cjs:49648:47)
+2026-Apr-04 22:58:01.718077 at Module._compile (node:internal/modules/cjs/loader:1521:14)
+2026-Apr-04 22:58:01.718077 at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+2026-Apr-04 22:58:01.718077 at Module.load (node:internal/modules/cjs/loader:1266:32)
+2026-Apr-04 22:58:01.718077 at Module._load (node:internal/modules/cjs/loader:1091:12)
+2026-Apr-04 22:58:01.718077 at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+2026-Apr-04 22:58:01.718077 at node:internal/main/run_main_module:28:49 {
+2026-Apr-04 22:58:01.718077 code: 'ERR_INVALID_ARG_TYPE'
+2026-Apr-04 22:58:01.718077 }
+2026-Apr-04 22:58:01.718077
+2026-Apr-04 22:58:01.718077 Node.js v20.20.2
+2026-Apr-04 22:58:01.718077 node:internal/url:1487
+2026-Apr-04 22:58:01.718077 throw new ERR_INVALID_ARG_TYPE('path', ['string', 'URL'], path);
+2026-Apr-04 22:58:01.718077 ^
+2026-Apr-04 22:58:01.718077
+2026-Apr-04 22:58:01.718077 TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type string or an instance of URL. Received undefined
+2026-Apr-04 22:58:01.718077 at fileURLToPath (node:internal/url:1487:11)
+2026-Apr-04 22:58:01.718077 at Object.<anonymous> (/app/dist-server/server.cjs:49648:47)
+2026-Apr-04 22:58:01.718077 at Module._compile (node:internal/modules/cjs/loader:1521:14)
+2026-Apr-04 22:58:01.718077 at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+2026-Apr-04 22:58:01.718077 at Module.load (node:internal/modules/cjs/loader:1266:32)
+2026-Apr-04 22:58:01.718077 at Module._load (node:internal/modules/cjs/loader:1091:12)
+2026-Apr-04 22:58:01.718077 at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+2026-Apr-04 22:58:01.718077 at node:internal/main/run_main_module:28:49 {
+2026-Apr-04 22:58:01.718077 code: 'ERR_INVALID_ARG_TYPE'
+2026-Apr-04 22:58:01.718077 }
+2026-Apr-04 22:58:01.718077
+2026-Apr-04 22:58:01.718077 Node.js v20.20.2
+2026-Apr-04 22:58:01.718077 node:internal/url:1487
+2026-Apr-04 22:58:01.718077 throw new ERR_INVALID_ARG_TYPE('path', ['string', 'URL'], path);
+2026-Apr-04 22:58:01.718077 ^
+2026-Apr-04 22:58:01.718077
+2026-Apr-04 22:58:01.718077 TypeError [ERR_INVALID_ARG_TYPE]: The "path" argument must be of type string or an instance of URL. Received undefined
+2026-Apr-04 22:58:01.718077 at fileURLToPath (node:internal/url:1487:11)
+2026-Apr-04 22:58:01.718077 at Object.<anonymous> (/app/dist-server/server.cjs:49648:47)
+2026-Apr-04 22:58:01.718077 at Module._compile (node:internal/modules/cjs/loader:1521:14)
+2026-Apr-04 22:58:01.718077 at Module._extensions..js (node:internal/modules/cjs/loader:1623:10)
+2026-Apr-04 22:58:01.718077 at Module.load (node:internal/modules/cjs/loader:1266:32)
+2026-Apr-04 22:58:01.718077 at Module._load (node:internal/modules/cjs/loader:1091:12)
+2026-Apr-04 22:58:01.718077 at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:164:12)
+2026-Apr-04 22:58:01.718077 at node:internal/main/run_main_module:28:49 {
+2026-Apr-04 22:58:01.718077 code: 'ERR_INVALID_ARG_TYPE'
+2026-Apr-04 22:58:01.718077 }
+2026-Apr-04 22:58:01.718077
+2026-Apr-04 22:58:01.718077 Node.js v20.20.2
+2026-Apr-04 22:58:01.722230 ----------------------------------------
+2026-Apr-04 22:58:01.728852 Removing old containers.
+2026-Apr-04 22:58:01.734312 ----------------------------------------
+2026-Apr-04 22:58:01.739597 WARNING: Dockerfile or Docker Image based deployment detected. The healthcheck needs a curl or wget command to check the health of the application. Please make sure that it is available in the image or turn off healthcheck on Coolify's UI.
+2026-Apr-04 22:58:01.745608 ----------------------------------------
+2026-Apr-04 22:58:01.751810 New container is not healthy, rolling back to the old container.
+2026-Apr-04 22:58:02.123665 [CMD]: docker stop -t 30 sow84kgossgoc44ok4s8kss4-225705386835
+2026-Apr-04 22:58:02.123665 sow84kgossgoc44ok4s8kss4-225705386835
+2026-Apr-04 22:58:02.496793 [CMD]: docker rm -f sow84kgossgoc44ok4s8kss4-225705386835
+2026-Apr-04 22:58:02.496793 sow84kgossgoc44ok4s8kss4-225705386835
+2026-Apr-04 22:58:02.504500 Rolling update completed.
+2026-Apr-04 22:58:03.664732 Gracefully shutting down build container: wow4k0s0so44gokwckcc4ksw
+2026-Apr-04 22:58:04.147825 [CMD]: docker stop -t 30 wow4k0s0so44gokwckcc4ksw
+2026-Apr-04 22:58:04.147825 wow4k0s0so44gokwckcc4ksw
