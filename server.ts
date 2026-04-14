@@ -389,6 +389,182 @@ STRICT FORMATTING: Return ONLY a valid JSON array of objects (one per product):
     }
   });
 
+  // ─── eShop Pipeline ────────────────────────────────────────────────
+  const uploadMemory = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
+
+  // Parse eShop CSV / XLSX → return JSON array of products
+  app.post('/api/eshop/parse', authenticate, uploadMemory.single('file'), async (req: any, res) => {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    try {
+      const XLSX = await import('xlsx');
+      const wb = XLSX.read(req.file.buffer, { type: 'buffer', cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows: any[] = XLSX.utils.sheet_to_json(ws, { raw: false, defval: '' });
+
+      const products = rows.map((row, idx) => ({
+        _idx: idx,
+        _raw: row,
+        _status: 'pending',
+        // Identity
+        itemIdent: String(row['ItemIdent'] || ''),
+        itemId: String(row['ItemId'] || '').trim(),
+        brand: String(row['{GlobalMiscField}מותג'] || '').trim(),
+        // Watch specs (GlobalMiscFields)
+        movement: String(row['{GlobalMiscField}מנגנון'] || ''),
+        diameter: String(row['{GlobalMiscField}קוטר'] || ''),
+        warrantyMisc: String(row['{GlobalMiscField}אחריות'] || ''),
+        material: String(row['{GlobalMiscField}חומר'] || ''),
+        gender: String(row['{GlobalMiscField}מגדר'] || ''),
+        waterResistance: String(row['{GlobalMiscField}עמידות למים'] || ''),
+        glass: String(row['{GlobalMiscField}זכוכית'] || ''),
+        // Core product
+        category: String(row['category'] || ''),
+        subCategory: String(row['SubCategory'] || ''),
+        name: String(row['Name'] || '').trim(),
+        description: String(row['Description'] || ''),
+        shortDescription: String(row['ShortDescription'] || ''),
+        modelNumber: String(row['ItemModel'] || ''),
+        // Pricing
+        salePrice: String(row['SalePrice'] || ''),
+        costPrice: String(row['CostPrice'] || ''),
+        regularPrice: String(row['RegularPrice'] || ''),
+        // Logistics
+        deliveryTime: String(row['DeliveryTime'] || ''),
+        deliveryPrice: String(row['DeliveryPrice'] || ''),
+        maxPayments: String(row['maxpayments'] || ''),
+        warranty: String(row['Warranty'] || ''),
+        warrantyText: String(row['WarrantyText'] || ''),
+        // SEO
+        seoTitle: String(row['SeoTitle'] || ''),
+        seoDescription: String(row['SeoDescription'] || ''),
+        seoKeywords: String(row['SeoKeywords'] || ''),
+        searchWords: String(row['SearchWords'] || ''),
+        // Supplier
+        manufacturer: String(row['ManufactName'] || ''),
+        supplierName: String(row['SupplierName'] || ''),
+        // Media
+        images: String(row['images'] || ''),
+        zapUrl: String(row['zap_url'] || ''),
+        zapMinPrice: String(row['ZapMinimumPrice'] || ''),
+        friendlyUrl: String(row['friendlyurl'] || ''),
+        itemStatus: String(row['ItemStatus'] || ''),
+      }));
+
+      res.json(products);
+    } catch (err: any) {
+      console.error('eShop parse error:', err.message);
+      res.status(500).json({ error: 'Failed to parse file', detail: err.message });
+    }
+  });
+
+  // AI-enrich a single product (fill missing fields)
+  app.post('/api/eshop/enrich-product', authenticate, async (req, res) => {
+    const { product, language = 'he', settings: cfg, model = 'gemini-2.0-flash', writingStyle = 'marketing' } = req.body;
+
+    const styles: Record<string, string> = {
+      marketing: 'high-converting marketing copy — emotional benefits, urgency, aspirational language',
+      formal: 'formal and professional — precise, authoritative, no slang',
+      casual: 'casual and friendly — conversational, approachable',
+      technical: 'technical and spec-focused — accuracy, measurements, product details',
+    };
+
+    const FIELDS = ['description', 'shortDescription', 'movement', 'diameter', 'material', 'gender', 'waterResistance', 'glass', 'seoTitle', 'seoDescription', 'seoKeywords'] as const;
+    const missing = FIELDS.filter(f => !product[f]?.trim());
+
+    if (!missing.length) return res.json({ ...product, _status: 'skipped' });
+
+    const brandConfigs = cfg?.brands || [];
+    const brandConfig = brandConfigs.find((b: any) => b.brandName?.toLowerCase() === product.brand?.toLowerCase());
+
+    const prompt = `You are an expert Hebrew e-commerce content writer specializing in watches.
+Fill in ONLY the missing fields for this product based on the product name, brand, and any existing data.
+
+Product:
+- Name: ${product.name}
+- Brand: ${product.brand}
+- Category: ${product.category}
+- Sale Price: ₪${product.salePrice}
+- Model / SKU: ${product.itemId}
+- Warranty: ${product.warrantyText || (product.warranty + ' חודשים')}
+${product.movement ? `- Movement: ${product.movement}` : ''}${product.diameter ? `\n- Diameter: ${product.diameter}` : ''}${product.material ? `\n- Material: ${product.material}` : ''}${product.gender ? `\n- Gender: ${product.gender}` : ''}${product.waterResistance ? `\n- Water Resistance: ${product.waterResistance}` : ''}${product.glass ? `\n- Glass: ${product.glass}` : ''}
+${brandConfig ? `Brand Config: Warranty=${brandConfig.warranty}, MinPrice=₪${brandConfig.minPrice}` : ''}
+Missing fields to fill: ${missing.join(', ')}
+
+Style guide for descriptions: ${styles[writingStyle] || styles.marketing}
+
+STRICT RULES:
+1. All text must be in Hebrew
+2. description: 150-200 words, compelling marketing copy, no bullet points inside
+3. shortDescription: 2 concise sentences
+4. seoTitle: max 60 chars — "שעון יד [מותג] [דגם] | [benefit]"
+5. seoDescription: 150-160 chars max
+6. seoKeywords: comma-separated string, 5-8 keywords in Hebrew
+7. gender: one of exactly: גבר | אישה | יוניסקס | ילדים
+8. waterResistance: e.g. "30M", "50M", "100M", "200M"
+9. glass: e.g. "מינרל", "ספיר", "אקריל"
+10. movement: e.g. "קוורץ יפני", "אוטומטי", "מכני"
+11. diameter: e.g. "42 מ\"מ", "38 מ\"מ"
+12. material: e.g. "נירוסטה", "עור", "סיליקון"
+13. Infer missing watch specs from the product name/model number using your knowledge
+
+Return ONLY valid JSON (no markdown, no \`\`\`, no intro text, start with {):
+{"description":"","shortDescription":"","movement":"","diameter":"","material":"","gender":"","waterResistance":"","glass":"","seoTitle":"","seoDescription":"","seoKeywords":""}`;
+
+    try {
+      const result = await ai.models.generateContent({ model, contents: prompt });
+      const text = result.text?.trim() ?? '';
+      const match = text.match(/\{[\s\S]*\}/);
+      if (!match) throw new Error('No JSON in AI response');
+      const enriched = JSON.parse(match[0]);
+
+      // Merge: only fill in genuinely missing fields
+      const merged: any = { ...product, _status: 'done' };
+      for (const f of missing) {
+        if (enriched[f]?.trim()) merged[f] = enriched[f].trim();
+      }
+      res.json(merged);
+    } catch (err: any) {
+      console.error('eShop enrich error:', err.message);
+      res.status(500).json({ ...product, _status: 'error', _error: err.message });
+    }
+  });
+
+  // Generate AI product image via Gemini
+  app.post('/api/eshop/generate-image', authenticate, async (req, res) => {
+    const { product, model = 'gemini-flash-image-generation' } = req.body;
+
+    const prompt = `Professional luxury watch product photography for e-commerce.
+Watch: ${product.name}
+Brand: ${product.brand}
+Pure white background, studio lighting, sharp focus on the watch face and all details.
+${product.material ? 'Case/strap material: ' + product.material + '.' : ''}
+${product.diameter ? 'Watch size: ' + product.diameter + '.' : ''}
+${product.gender === 'אישה' ? 'Elegant feminine style.' : product.gender === 'ילדים' ? 'Colorful kids watch.' : 'Classic masculine style.'}
+High-resolution commercial product photo. No watermarks, no text, no props, no reflections.`;
+
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: prompt,
+        config: { responseModalities: ['IMAGE'] as any },
+      });
+
+      const parts = (response.candidates?.[0]?.content?.parts ?? []) as any[];
+      const imgPart = parts.find((p: any) => p.inlineData);
+      if (!imgPart?.inlineData) throw new Error('No image data in response');
+
+      const { data, mimeType } = imgPart.inlineData;
+      const ext = (mimeType || 'image/png').split('/')[1]?.replace('jpeg', 'jpg') || 'png';
+      const filename = `ai-${randomUUID()}.${ext}`;
+      writeFileSync(path.join(UPLOADS_DIR, filename), Buffer.from(data, 'base64'));
+
+      res.json({ url: `/uploads/${filename}` });
+    } catch (err: any) {
+      console.error('eShop image gen error:', err.message);
+      res.status(500).json({ error: 'Image generation failed', detail: err.message });
+    }
+  });
+
   // ─── Vite / Static ─────────────────────────────────────────────────
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({

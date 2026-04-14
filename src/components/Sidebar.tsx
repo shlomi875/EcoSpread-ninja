@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Plus, Search, Sparkles, Settings, Database, History, Languages, LogOut, PenTool, Image as ImageIcon, Users } from 'lucide-react';
+import { LayoutDashboard, Plus, Search, Sparkles, Settings, Database, History, Languages, LogOut, PenTool, Image as ImageIcon, Users, ArrowRightLeft } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { translations, Language } from '../i18n';
 import { AppView } from '../types';
@@ -36,6 +36,7 @@ export function Sidebar({
     { icon: Database, label: t.products, view: 'products' as AppView },
     { icon: PenTool, label: t.creative, view: 'creative' as AppView },
     { icon: ImageIcon, label: t.assets, view: 'assets' as AppView },
+    ...(user?.role === 'admin' || user?.role === 'editor' ? [{ icon: ArrowRightLeft, label: (t as any).eshopPipeline, view: 'eshop' as AppView }] : []),
     ...(user?.role === 'admin' ? [{ icon: Users, label: language === 'he' ? 'משתמשים' : 'Users', view: 'users' as AppView }] : []),
     { icon: Settings, label: t.settings, onClick: onOpenSettings },
   ];

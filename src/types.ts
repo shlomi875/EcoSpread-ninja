@@ -1,4 +1,57 @@
-export type AppView = 'dashboard' | 'products' | 'creative' | 'assets' | 'users';
+export type AppView = 'dashboard' | 'products' | 'creative' | 'assets' | 'users' | 'eshop';
+
+// ─── eShop Pipeline ────────────────────────────────────────────────
+export type EshopProductStatus = 'pending' | 'enriching' | 'done' | 'error' | 'skipped';
+
+export interface EshopProduct {
+  _idx: number;
+  _raw: Record<string, any>;
+  _status: EshopProductStatus;
+  _error?: string;
+  // Identity
+  itemIdent: string;
+  itemId: string;
+  brand: string;
+  // GlobalMiscFields (watch specs)
+  movement: string;
+  diameter: string;
+  warrantyMisc: string;
+  material: string;
+  gender: string;
+  waterResistance: string;
+  glass: string;
+  // Core
+  category: string;
+  subCategory: string;
+  name: string;
+  description: string;
+  shortDescription: string;
+  modelNumber: string;
+  // Pricing
+  salePrice: string;
+  costPrice: string;
+  regularPrice: string;
+  // Logistics
+  deliveryTime: string;
+  deliveryPrice: string;
+  maxPayments: string;
+  warranty: string;
+  warrantyText: string;
+  // SEO
+  seoTitle: string;
+  seoDescription: string;
+  seoKeywords: string;
+  searchWords: string;
+  // Supplier
+  manufacturer: string;
+  supplierName: string;
+  // Media & URLs
+  images: string;
+  zapUrl: string;
+  zapMinPrice: string;
+  friendlyUrl: string;
+  itemStatus: string;
+}
 
 export interface AppUser {
   id: string;

@@ -10,6 +10,7 @@ import { Dashboard } from './components/Dashboard';
 import { CreativeGenerator } from './components/CreativeGenerator';
 import { AssetsManager } from './components/AssetsManager';
 import { UsersManager } from './components/UsersManager';
+import { EshopPipeline } from './components/EshopPipeline';
 import { SEOMasterModal } from './components/SEOMasterModal';
 import { Product, CompanySettings, AppView } from './types';
 import { translations, Language } from './i18n';
@@ -292,6 +293,20 @@ export default function App() {
           <div className="p-10">
             <UsersManager language={language} />
           </div>
+        )}
+
+        {activeView === 'eshop' && (user?.role === 'admin' || user?.role === 'editor') && (
+          <>
+            <header className="h-20 bg-white border-b px-10 flex items-center justify-between flex-shrink-0">
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight text-gray-900">{(t as any).eshopPipeline}</h2>
+                <p className="text-sm text-gray-500">{(t as any).eshopPipelineSub}</p>
+              </div>
+            </header>
+            <div className="flex-1 p-10 overflow-y-auto">
+              <EshopPipeline language={language} settings={settings} />
+            </div>
+          </>
         )}
       </main>
 
