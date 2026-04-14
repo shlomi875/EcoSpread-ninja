@@ -117,6 +117,28 @@ export default function App() {
     }
   };
 
+  const handleSyncProductsToDB = async (productsToSync: Product[]) => {
+    setIsLoading(true);
+    let successCount = 0;
+    try {
+      for (const p of productsToSync) {
+        const isNew = !p.id;
+        const r = await fetch(isNew ? '/api/products' : `/api/products/${p.id}`, {
+          method: isNew ? 'POST' : 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(p)
+        });
+        if (r.ok) successCount++;
+      }
+      await loadProducts();
+      showNotification('success', language === 'he' ? `${successCount} מוצרים נשמרו במלאי בהצלחה` : `${successCount} products saved successfully`);
+    } catch (err) {
+      showNotification('error', language === 'he' ? 'שגיאה בסנכרון חלק מהמוצרים' : 'Error syncing some products');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleDeleteProduct = async (id: string) => {
     if (!window.confirm(t.confirmDelete)) return;
     try {
@@ -304,7 +326,7 @@ export default function App() {
               </div>
             </header>
             <div className="flex-1 p-10 overflow-y-auto">
-              <EshopPipeline language={language} settings={settings} />
+              <EshopPipeline language={language} settings={settings} onSaveToInventory={handleSyncProductsToDB} />
             </div>
           </>
         )}

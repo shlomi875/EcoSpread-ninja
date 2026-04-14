@@ -10,15 +10,19 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { translations, Language } from '../i18n';
-import { CompanySettings, EshopProduct } from '../types';
+import { CompanySettings, EshopProduct, Product } from '../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type PipelineStep = 'import' | 'enrich' | 'images' | 'export';
-type ImageMode = 'generate' | 'analyze' | 'edit' | 'variations';
+type ImageMode = 'generate' | 'analyze' | 'edit' | 'variations' | 'upload';
 type AspectRatio = '1:1' | '16:9' | '9:16' | '4:3' | '3:4';
 
 interface EnrichProgress { current: number; total: number; currentName: string; }
-interface EshopPipelineProps { language: Language; settings: CompanySettings; }
+interface EshopPipelineProps { 
+  language: Language; 
+  settings: CompanySettings; 
+  onSaveToInventory?: (products: Product[]) => Promise<void>; 
+}
 
 // ─── Model Config ─────────────────────────────────────────────────────────────
 const ENRICH_MODELS = [
@@ -104,6 +108,38 @@ function buildImagePrompt(product: EshopProduct, custom: string, tags: Record<st
   const style = tagStr ? ` Style: ${tagStr}.` : '';
   const extra = custom ? ` ${custom}` : '';
   return `${base}${style}${extra} High-resolution e-commerce product photo, no watermarks, no text.`;
+}
+
+function mapEshopToProduct(p: EshopProduct): Product {
+  return {
+    id: '', 
+    name: p.name || 'New Product',
+    sku: p.itemId || '',
+    modelNumber: p.modelNumber || '',
+    category: p.category || 'Uncategorized',
+    subCategory: p.subCategory,
+    gender: (p.gender === 'Men' || p.gender === 'גברים') ? 'men' : 
+            (p.gender === 'Women' || p.gender === 'נשים') ? 'women' : 'unisex',
+    price: p.regularPrice || p.salePrice || '₪0',
+    zapPrice: p.zapMinPrice,
+    zapLink: p.zapUrl,
+    description: p.description || '',
+    shortDescription: p.shortDescription || '',
+    manufacturer: p.manufacturer || p.brand || '',
+    warranty: p.warranty || '',
+    deliveryTime: p.deliveryTime || '',
+    payments: p.maxPayments || '',
+    movement: p.movement,
+    diameter: p.diameter,
+    material: p.material,
+    waterResistance: p.waterResistance,
+    glass: p.glass,
+    filters: [],
+    seoKeywords: p.seoKeywords ? p.seoKeywords.split(',').map(s => s.trim()) : [],
+    images: p.images ? p.images.split(';').filter(Boolean) : [],
+    status: 'ready',
+    lastUpdated: new Date().toISOString(),
+  };
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -235,6 +271,32 @@ function ImageStudio({ product, onImageSaved, language }: {
   const [analysisText, setAnalysisText] = useState('');
   const [editInstruction, setEditInstruction] = useState('');
   const [copied, setCopied] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+
+  // @ts-expect-error react-dropzone type mismatch
+  const { getRootProps: getDropProps, getInputProps: getDropInputProps, isDragActive: isDropActive } = useDropzone({
+    accept: { 'image/*': ['.png', '.jpg', '.jpeg', '.webp'] },
+    multiple: false,
+    onDrop: async (accepted) => {
+      const file = accepted[0];
+      if (!file) return;
+      setIsUploading(true);
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        const r = await fetch('/api/upload', { method: 'POST', body: fd });
+        if (!r.ok) throw new Error('Upload failed');
+        const { url } = await r.json();
+        
+        onImageSaved(url);
+        setResult(url);
+      } catch (err: any) {
+        setAnalysisText('Upload error: ' + err.message);
+      } finally {
+        setIsUploading(false);
+      }
+    }
+  });
 
   const existingImages = product.images?.split(';').filter(Boolean) ?? [];
   const fullPrompt = buildImagePrompt(product, customPrompt, selectedTags);
@@ -289,6 +351,7 @@ function ImageStudio({ product, onImageSaved, language }: {
     { key: 'analyze',    label: language === 'he' ? 'ניתוח'     : 'Analyze',    icon: Search   },
     { key: 'edit',       label: language === 'he' ? 'עריכה'     : 'Edit',       icon: Pencil   },
     { key: 'variations', label: language === 'he' ? 'וריאציות'  : 'Variations', icon: Layers   },
+    { key: 'upload',     label: language === 'he' ? 'העלאה'     : 'Upload',     icon: Download }, // Download icon pointing down for upload
   ];
 
   const RATIOS: AspectRatio[] = ['1:1', '16:9', '9:16', '4:3', '3:4'];
@@ -432,13 +495,27 @@ function ImageStudio({ product, onImageSaved, language }: {
                 : 'Analyze the existing product image using Gemini Vision — get watch details, style, materials, and more.'}
             </div>
           )}
+          
+          {mode === 'upload' && (
+            <div className="p-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-300 text-center">
+              <p className="text-sm text-gray-500 font-medium">
+                {language === 'he' ? 'במצב העלאה, פשוט גרור תמונה לאזור התצוגה משמאל, או לחץ עליו כדי לבחור קובץ להעלאה ידנית.' : 'In Upload mode, simply drag an image to the preview area on the right, or click it to select a file for manual upload.'}
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Preview panel */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Preview area */}
-          <div className="flex-1 flex items-center justify-center bg-gray-50 p-4">
-            {isLoading ? (
+          <div {...(mode === 'upload' || mode === 'variations' ? getDropProps() : {})} className={cn("flex-1 flex items-center justify-center bg-gray-50 p-4 transition-all relative", (mode === 'upload' || mode === 'variations') && "cursor-pointer hover:bg-gray-100", isDropActive && "bg-indigo-50 border-2 border-indigo-400 border-dashed")}>
+            {(mode === 'upload' || mode === 'variations') && <input {...getDropInputProps()} />}
+            {isUploading ? (
+              <div className="text-center absolute inset-0 flex flex-col items-center justify-center bg-white/80 z-10">
+                <Loader2 className="w-12 h-12 text-indigo-500 mx-auto mb-3 animate-spin" />
+                <p className="text-sm font-semibold text-indigo-600">{language === 'he' ? 'מעלה תמונה...' : 'Uploading...'}</p>
+              </div>
+            ) : isLoading ? (
               <div className="text-center">
                 <Loader2 className="w-12 h-12 text-purple-500 mx-auto mb-3 animate-spin" />
                 <p className="text-sm text-gray-500 font-medium animate-pulse">
@@ -486,28 +563,36 @@ function ImageStudio({ product, onImageSaved, language }: {
                 </div>
               </div>
             ) : (
-              <div className="text-center text-gray-300">
+              <div className="text-center text-gray-300 pointer-events-none">
                 <ImageIcon className="w-16 h-16 mx-auto mb-3 opacity-30" />
-                <p className="text-sm font-medium">{language === 'he' ? 'מוכן ליצירה' : 'Ready to Create'}</p>
-                <p className="text-xs text-gray-400 mt-1">
-                  {language === 'he' ? 'בחר הגדרות ולחץ ייצור' : 'Select settings and click Generate'}
+                <p className="text-sm font-medium">
+                  {mode === 'upload' || mode === 'variations' 
+                    ? (language === 'he' ? 'גרור תמונה לכאן או לחץ להעלאה' : 'Drag image here or click to upload')
+                    : (language === 'he' ? 'מוכן ליצירה' : 'Ready to Create')}
                 </p>
+                {mode !== 'upload' && mode !== 'variations' && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    {language === 'he' ? 'בחר הגדרות ולחץ ייצור' : 'Select settings and click Generate'}
+                  </p>
+                )}
               </div>
             )}
           </div>
 
           {/* Generate button */}
-          <div className="p-4 border-t bg-white">
-            <button onClick={handleGenerate} disabled={isLoading}
-              className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-purple-200 hover:shadow-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
-              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
-              {isLoading ? (language === 'he' ? 'מעבד...' : 'Processing...') :
-               mode === 'analyze' ? (language === 'he' ? 'נתח תמונה' : 'Analyze Image') :
-               mode === 'edit'    ? (language === 'he' ? 'ערוך תמונה' : 'Edit Image') :
-               mode === 'variations' ? (language === 'he' ? 'יצור וריאציה' : 'Generate Variation') :
-               (language === 'he' ? 'יצור תמונה' : 'Generate Image')}
-            </button>
-          </div>
+          {mode !== 'upload' && (
+            <div className="p-4 border-t bg-white relative z-20">
+              <button onClick={handleGenerate} disabled={isLoading || isUploading}
+                className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-purple-200 hover:shadow-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
+                {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
+                {isLoading ? (language === 'he' ? 'מעבד...' : 'Processing...') :
+                 mode === 'analyze' ? (language === 'he' ? 'נתח תמונה' : 'Analyze Image') :
+                 mode === 'edit'    ? (language === 'he' ? 'ערוך תמונה' : 'Edit Image') :
+                 mode === 'variations' ? (language === 'he' ? 'יצור וריאציה' : 'Generate Variation') :
+                 (language === 'he' ? 'יצור תמונה' : 'Generate Image')}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -515,7 +600,7 @@ function ImageStudio({ product, onImageSaved, language }: {
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-export function EshopPipeline({ language, settings }: EshopPipelineProps) {
+export function EshopPipeline({ language, settings, onSaveToInventory }: EshopPipelineProps) {
   const t = translations[language] as any;
   const isRTL = language === 'he';
 
@@ -531,6 +616,7 @@ export function EshopPipeline({ language, settings }: EshopPipelineProps) {
   const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash');
   const [writingStyle, setWritingStyle] = useState('marketing');
   const [page, setPage] = useState(0);
+  const [selectedExportIds, setSelectedExportIds] = useState<Set<number>>(new Set());
   const PAGE_SIZE = 20;
   const runningRef = useRef(false);
 
@@ -607,7 +693,33 @@ export function EshopPipeline({ language, settings }: EshopPipelineProps) {
     a.click(); URL.revokeObjectURL(url);
   };
 
-  const resetPipeline = () => { setProducts([]); setStep('import'); setPage(0); setBrandFilter(''); setSelectedProduct(null); setSelectedForImage(null); setEnrichProgress({ current: 0, total: 0, currentName: '' }); };
+  const handleSaveSelectedToInventory = async () => {
+    if (!onSaveToInventory) return;
+    const selectedProductsArr = filteredProducts.filter(p => selectedExportIds.has(p._idx));
+    if (selectedProductsArr.length === 0) return;
+    const items = selectedProductsArr.map(mapEshopToProduct);
+    await onSaveToInventory(items);
+    setSelectedExportIds(new Set()); // clear after save
+  };
+
+  const toggleExportSelection = (idx: number) => {
+    setSelectedExportIds(prev => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx);
+      else next.add(idx);
+      return next;
+    });
+  };
+
+  const toggleAllExportSelection = () => {
+    if (selectedExportIds.size === pageProducts.length) {
+      setSelectedExportIds(new Set());
+    } else {
+      setSelectedExportIds(new Set(pageProducts.map(p => p._idx)));
+    }
+  };
+
+  const resetPipeline = () => { setProducts([]); setStep('import'); setPage(0); setBrandFilter(''); setSelectedProduct(null); setSelectedForImage(null); setEnrichProgress({ current: 0, total: 0, currentName: '' }); setSelectedExportIds(new Set()); };
 
   // ════════════════════════════════════════════════════════════════════════════
   return (
@@ -957,18 +1069,33 @@ export function EshopPipeline({ language, settings }: EshopPipelineProps) {
           <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
             <div className="p-4 border-b bg-gray-50 flex items-center justify-between">
               <p className="text-sm font-semibold text-gray-700">{t.exportReady}</p>
-              <p className="text-xs text-gray-400">{filteredProducts.length} products → eShop CSV</p>
+              <div className="flex items-center gap-3">
+                {selectedExportIds.size > 0 && onSaveToInventory && (
+                  <button onClick={handleSaveSelectedToInventory}
+                    className="flex items-center gap-2 px-4 py-1.5 bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold hover:bg-indigo-200 transition-colors">
+                    <Save className="w-3.5 h-3.5" />
+                    {language === 'he' ? 'שמור נבחרים למלאי' : 'Save Selected to Inventory'} ({selectedExportIds.size})
+                  </button>
+                )}
+                <p className="text-xs text-gray-400">{filteredProducts.length} products → eShop CSV</p>
+              </div>
             </div>
             <div className="overflow-auto max-h-64">
               <table className="w-full text-xs" dir={isRTL ? 'rtl' : 'ltr'}>
                 <thead className="sticky top-0 bg-gray-50 border-b">
-                  <tr>{['SKU', t.productName, 'Status', t.description, 'SEO Title', t.movement, 'Images'].map(h => (
-                    <th key={h} className={cn('px-4 py-3 font-semibold text-gray-500 uppercase', isRTL ? 'text-right' : 'text-left')}>{h}</th>
-                  ))}</tr>
+                  <tr>
+                    <th className="px-4 py-3"><input type="checkbox" checked={selectedExportIds.size > 0 && selectedExportIds.size === pageProducts.length} onChange={toggleAllExportSelection} className="rounded border-gray-300" /></th>
+                    {['SKU', t.productName, 'Status', t.description, 'SEO Title', t.movement, 'Images'].map(h => (
+                      <th key={h} className={cn('px-4 py-3 font-semibold text-gray-500 uppercase', isRTL ? 'text-right' : 'text-left')}>{h}</th>
+                    ))}
+                  </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {pageProducts.map(p => (
-                    <tr key={p._idx} className="hover:bg-gray-50 transition-colors">
+                    <tr key={p._idx} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => toggleExportSelection(p._idx)}>
+                      <td className="px-4 py-2.5">
+                        <input type="checkbox" checked={selectedExportIds.has(p._idx)} onChange={() => toggleExportSelection(p._idx)} onClick={e => e.stopPropagation()} className="rounded border-gray-300" />
+                      </td>
                       <td className="px-4 py-2.5 font-mono text-gray-400">{p.itemId}</td>
                       <td className="px-4 py-2.5 font-medium text-gray-800 max-w-[160px] truncate">{p.name}</td>
                       <td className="px-4 py-2.5"><StatusBadge status={p._status} /></td>
