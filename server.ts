@@ -565,6 +565,155 @@ High-resolution commercial product photo. No watermarks, no text, no props, no r
     }
   });
 
+  // Analyze an existing product image via Gemini Vision
+  app.post('/api/eshop/analyze-image', authenticate, async (req, res) => {
+    const { imageUrl, product } = req.body;
+    if (!imageUrl) return res.status(400).json({ error: 'imageUrl required' });
+
+    try {
+      // Resolve local /uploads/ URLs to absolute file paths
+      let imageData: string;
+      let mimeType = 'image/jpeg';
+
+      if (imageUrl.startsWith('/uploads/')) {
+        const filePath = path.join(UPLOADS_DIR, path.basename(imageUrl));
+        if (!existsSync(filePath)) return res.status(404).json({ error: 'Image file not found' });
+        const { readFileSync } = await import('fs');
+        const ext = path.extname(imageUrl).toLowerCase().replace('.', '');
+        mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
+        imageData = readFileSync(filePath).toString('base64');
+      } else {
+        // External URL — fetch and convert to base64
+        const { default: https } = await import('https');
+        const { default: http } = await import('http');
+        const protocol = imageUrl.startsWith('https') ? https : http;
+        imageData = await new Promise((resolve, reject) => {
+          protocol.get(imageUrl, (response) => {
+            const chunks: Buffer[] = [];
+            response.on('data', (chunk: Buffer) => chunks.push(chunk));
+            response.on('end', () => resolve(Buffer.concat(chunks).toString('base64')));
+            response.on('error', reject);
+          }).on('error', reject);
+        });
+        if (imageUrl.endsWith('.png')) mimeType = 'image/png';
+      }
+
+      const analysisPrompt = `You are an expert e-commerce product image analyst. Analyze this watch product image and provide a detailed assessment.
+Product: ${product?.name || 'Watch'}, Brand: ${product?.brand || 'Unknown'}
+
+Provide your analysis in the following JSON format:
+{
+  "quality": "excellent|good|fair|poor",
+  "qualityScore": 85,
+  "background": "description of background",
+  "lighting": "description of lighting",
+  "focus": "sharp|blurry|partial",
+  "composition": "centered|off-center|angled",
+  "issues": ["list of issues if any"],
+  "suggestions": ["list of improvement suggestions"],
+  "ecommerceReady": true,
+  "summary": "2-3 sentence summary of the image quality and suitability for e-commerce"
+}
+Return ONLY the JSON, no markdown.`;
+
+      const response = await ai.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              { inlineData: { data: imageData, mimeType } },
+              { text: analysisPrompt },
+            ],
+          },
+        ],
+      });
+
+      const rawText = response.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const cleaned = rawText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+
+      try {
+        const analysis = JSON.parse(cleaned);
+        res.json({ analysis });
+      } catch {
+        res.json({ analysis: { summary: rawText, ecommerceReady: false } });
+      }
+    } catch (err: any) {
+      console.error('eShop analyze-image error:', err.message);
+      res.status(500).json({ error: 'Image analysis failed', detail: err.message });
+    }
+  });
+
+  // Edit / transform an existing product image via Gemini
+  app.post('/api/eshop/edit-image', authenticate, async (req, res) => {
+    const { imageUrl, instruction, product, model = 'gemini-3.1-flash-image-preview' } = req.body;
+    if (!imageUrl || !instruction) return res.status(400).json({ error: 'imageUrl and instruction required' });
+
+    try {
+      // Resolve image to base64
+      let imageData: string;
+      let mimeType = 'image/jpeg';
+
+      if (imageUrl.startsWith('/uploads/')) {
+        const filePath = path.join(UPLOADS_DIR, path.basename(imageUrl));
+        if (!existsSync(filePath)) return res.status(404).json({ error: 'Image file not found' });
+        const { readFileSync } = await import('fs');
+        const ext = path.extname(imageUrl).toLowerCase().replace('.', '');
+        mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
+        imageData = readFileSync(filePath).toString('base64');
+      } else {
+        const { default: https } = await import('https');
+        const { default: http } = await import('http');
+        const protocol = imageUrl.startsWith('https') ? https : http;
+        imageData = await new Promise((resolve, reject) => {
+          protocol.get(imageUrl, (response) => {
+            const chunks: Buffer[] = [];
+            response.on('data', (chunk: Buffer) => chunks.push(chunk));
+            response.on('end', () => resolve(Buffer.concat(chunks).toString('base64')));
+            response.on('error', reject);
+          }).on('error', reject);
+        });
+        if (imageUrl.endsWith('.png')) mimeType = 'image/png';
+      }
+
+      const editPrompt = `You are a professional product photo editor for e-commerce.
+Product: ${product?.name || 'Watch'}, Brand: ${product?.brand || 'Unknown'}
+
+Edit instruction: ${instruction}
+
+Apply the requested changes while maintaining professional e-commerce product photo quality.
+Keep the watch as the main subject. Preserve all watch details and branding.`;
+
+      const response = await ai.models.generateContent({
+        model,
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              { inlineData: { data: imageData, mimeType } },
+              { text: editPrompt },
+            ],
+          },
+        ],
+        config: { responseModalities: ['IMAGE'] as any },
+      });
+
+      const parts = (response.candidates?.[0]?.content?.parts ?? []) as any[];
+      const imgPart = parts.find((p: any) => p.inlineData);
+      if (!imgPart?.inlineData) throw new Error('No image data in response');
+
+      const { data, mimeType: outMime } = imgPart.inlineData;
+      const ext = (outMime || 'image/png').split('/')[1]?.replace('jpeg', 'jpg') || 'png';
+      const filename = `ai-edit-${randomUUID()}.${ext}`;
+      writeFileSync(path.join(UPLOADS_DIR, filename), Buffer.from(data, 'base64'));
+
+      res.json({ url: `/uploads/${filename}` });
+    } catch (err: any) {
+      console.error('eShop edit-image error:', err.message);
+      res.status(500).json({ error: 'Image editing failed', detail: err.message });
+    }
+  });
+
   // ─── Vite / Static ─────────────────────────────────────────────────
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
