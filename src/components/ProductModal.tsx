@@ -9,6 +9,10 @@ import { Product, CompanySettings } from '../types';
 import { cn } from '../lib/utils';
 import { generateProductContent } from '../services/geminiService';
 import { translations, Language } from '../i18n';
+import {
+  MECHANISMS, GENDERS, WATER_RESISTANCES, GLASS_TYPES,
+  WATCH_STYLES, STRAP_MATERIALS, CASE_MATERIALS, COLORS,
+} from '../constants/taxonomy';
 
 interface ProductModalProps {
   product: Product | null;
@@ -312,21 +316,135 @@ export function ProductModal({ product, isOpen, onClose, onSave, language, setti
                   <div className="space-y-4">
                     <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider border-b pb-2">{t.filters}</h3>
                     <div className="grid grid-cols-2 gap-4">
-                      {[
-                        { label: t.movement, key: 'movement' },
-                        { label: t.diameter, key: 'diameter' },
-                        { label: t.material, key: 'material' },
-                        { label: t.waterResistance, key: 'waterResistance' },
-                      ].map(({ label, key }) => (
-                        <div key={key}>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-                          <input type="text"
-                            value={(editedProduct as any)[key] || ''}
-                            onChange={(e) => !readOnly && setEditedProduct({ ...editedProduct, [key]: e.target.value })}
-                            readOnly={readOnly}
-                            className={smallInputClass} />
-                        </div>
-                      ))}
+                      {/* Movement */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t.movement}</label>
+                        {readOnly ? (
+                          <div className={smallInputClass}>{MECHANISMS.find(m => m.key === editedProduct.movement)?.name || editedProduct.movement || '—'}</div>
+                        ) : (
+                          <select value={editedProduct.movement || ''} onChange={e => setEditedProduct({ ...editedProduct, movement: e.target.value })} className={smallInputClass}>
+                            <option value="">{language === 'he' ? 'בחר מנגנון' : 'Select movement'}</option>
+                            {MECHANISMS.map(m => <option key={m.key} value={m.key}>{m.name}</option>)}
+                          </select>
+                        )}
+                      </div>
+                      {/* Diameter — free text (measurement) */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t.diameter}</label>
+                        <input type="text" value={editedProduct.diameter || ''}
+                          onChange={e => !readOnly && setEditedProduct({ ...editedProduct, diameter: e.target.value })}
+                          readOnly={readOnly} className={smallInputClass} placeholder={'42 מ"מ'} />
+                      </div>
+                      {/* Water Resistance */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t.waterResistance}</label>
+                        {readOnly ? (
+                          <div className={smallInputClass}>{WATER_RESISTANCES.find(w => w.key === editedProduct.waterResistance)?.name || editedProduct.waterResistance || '—'}</div>
+                        ) : (
+                          <select value={editedProduct.waterResistance || ''} onChange={e => setEditedProduct({ ...editedProduct, waterResistance: e.target.value })} className={smallInputClass}>
+                            <option value="">{language === 'he' ? 'בחר עמידות' : 'Select resistance'}</option>
+                            {WATER_RESISTANCES.map(w => <option key={w.key} value={w.key}>{w.name}</option>)}
+                          </select>
+                        )}
+                      </div>
+                      {/* Glass */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t.glass}</label>
+                        {readOnly ? (
+                          <div className={smallInputClass}>{GLASS_TYPES.find(g => g.key === editedProduct.glass)?.name || editedProduct.glass || '—'}</div>
+                        ) : (
+                          <select value={editedProduct.glass || ''} onChange={e => setEditedProduct({ ...editedProduct, glass: e.target.value })} className={smallInputClass}>
+                            <option value="">{language === 'he' ? 'בחר זכוכית' : 'Select glass'}</option>
+                            {GLASS_TYPES.map(g => <option key={g.key} value={g.key}>{g.name}</option>)}
+                          </select>
+                        )}
+                      </div>
+                      {/* Gender */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{t.gender}</label>
+                        {readOnly ? (
+                          <div className={smallInputClass}>{GENDERS.find(g => g.key === editedProduct.gender)?.name || editedProduct.gender || '—'}</div>
+                        ) : (
+                          <select value={editedProduct.gender || ''} onChange={e => setEditedProduct({ ...editedProduct, gender: e.target.value as any })} className={smallInputClass}>
+                            <option value="">{language === 'he' ? 'בחר מגדר' : 'Select gender'}</option>
+                            {GENDERS.map(g => <option key={g.key} value={g.key}>{g.name}</option>)}
+                          </select>
+                        )}
+                      </div>
+                      {/* Watch Style */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{(t as any).watchStyle}</label>
+                        {readOnly ? (
+                          <div className={smallInputClass}>{WATCH_STYLES.find(s => s.key === editedProduct.watchStyle)?.name || editedProduct.watchStyle || '—'}</div>
+                        ) : (
+                          <select value={editedProduct.watchStyle || ''} onChange={e => setEditedProduct({ ...editedProduct, watchStyle: e.target.value })} className={smallInputClass}>
+                            <option value="">{language === 'he' ? 'בחר סגנון' : 'Select style'}</option>
+                            {WATCH_STYLES.map(s => <option key={s.key} value={s.key}>{s.name}</option>)}
+                          </select>
+                        )}
+                      </div>
+                      {/* Strap Material */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{(t as any).strapMaterial}</label>
+                        {readOnly ? (
+                          <div className={smallInputClass}>{STRAP_MATERIALS.find(m => m.key === editedProduct.strapMaterial)?.name || editedProduct.strapMaterial || '—'}</div>
+                        ) : (
+                          <select value={editedProduct.strapMaterial || ''} onChange={e => setEditedProduct({ ...editedProduct, strapMaterial: e.target.value })} className={smallInputClass}>
+                            <option value="">{language === 'he' ? 'בחר חומר רצועה' : 'Select strap material'}</option>
+                            {STRAP_MATERIALS.map(m => <option key={m.key} value={m.key}>{m.name}</option>)}
+                          </select>
+                        )}
+                      </div>
+                      {/* Case Material */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{(t as any).caseMaterial}</label>
+                        {readOnly ? (
+                          <div className={smallInputClass}>{CASE_MATERIALS.find(m => m.key === editedProduct.caseMaterial)?.name || editedProduct.caseMaterial || '—'}</div>
+                        ) : (
+                          <select value={editedProduct.caseMaterial || ''} onChange={e => setEditedProduct({ ...editedProduct, caseMaterial: e.target.value })} className={smallInputClass}>
+                            <option value="">{language === 'he' ? 'בחר חומר קייס' : 'Select case material'}</option>
+                            {CASE_MATERIALS.map(m => <option key={m.key} value={m.key}>{m.name}</option>)}
+                          </select>
+                        )}
+                      </div>
+                    </div>
+                    {/* Colors — multi-select pills */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{(t as any).colors}</label>
+                      <div className="flex flex-wrap gap-2">
+                        {COLORS.map(color => {
+                          const selected = (editedProduct.colors || []).includes(color.key);
+                          return (
+                            <button
+                              key={color.key}
+                              type="button"
+                              disabled={readOnly}
+                              onClick={() => {
+                                if (readOnly) return;
+                                const current = editedProduct.colors || [];
+                                const next = selected
+                                  ? current.filter(k => k !== color.key)
+                                  : [...current, color.key];
+                                setEditedProduct({ ...editedProduct, colors: next });
+                              }}
+                              className={cn(
+                                "flex items-center gap-1.5 px-2 py-1 rounded-full border text-xs font-medium transition-all",
+                                selected
+                                  ? "border-blue-500 bg-blue-50 text-blue-700"
+                                  : "border-gray-200 bg-white text-gray-600 hover:border-gray-400",
+                                readOnly && "cursor-default opacity-75"
+                              )}
+                              title={color.name}
+                            >
+                              <span
+                                className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0"
+                                style={{ backgroundColor: color.hex }}
+                              />
+                              {color.name}
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
 

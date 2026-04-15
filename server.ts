@@ -468,7 +468,7 @@ STRICT FORMATTING: Return ONLY a valid JSON array of objects (one per product):
       technical: 'technical and spec-focused — accuracy, measurements, product details',
     };
 
-    const FIELDS = ['description', 'shortDescription', 'movement', 'diameter', 'material', 'gender', 'waterResistance', 'glass', 'seoTitle', 'seoDescription', 'seoKeywords'] as const;
+    const FIELDS = ['description', 'shortDescription', 'movement', 'diameter', 'material', 'gender', 'waterResistance', 'glass', 'watchStyle', 'strapMaterial', 'caseMaterial', 'colors', 'seoTitle', 'seoDescription', 'seoKeywords'] as const;
     const missing: string[] = FIELDS.filter(f => !product[f]?.trim());
     if (!missing.includes('name')) missing.push('name'); // Always rewrite name
 
@@ -477,40 +477,73 @@ STRICT FORMATTING: Return ONLY a valid JSON array of objects (one per product):
     const brandConfigs = cfg?.brands || [];
     const brandConfig = brandConfigs.find((b: any) => b.brandName?.toLowerCase() === product.brand?.toLowerCase());
 
-    const prompt = `You are an expert Hebrew e-commerce content writer specializing in watches.
-Fill in ONLY the missing fields for this product based on the product name, brand, and any existing data.
+    // Split missing fields into two buckets:
+    // - CONTENT fields: AI always generates these (descriptions, SEO, name)
+    // - SPEC fields: AI ONLY fills if it has verified knowledge of this exact model
+    const CONTENT_FIELDS = new Set(['name', 'description', 'shortDescription', 'seoTitle', 'seoDescription', 'seoKeywords']);
+    const SPEC_FIELDS = new Set(['movement', 'diameter', 'material', 'gender', 'waterResistance', 'glass', 'watchStyle', 'strapMaterial', 'caseMaterial', 'colors']);
 
-Product:
+    const missingContent = missing.filter(f => CONTENT_FIELDS.has(f));
+    const missingSpecs   = missing.filter(f => SPEC_FIELDS.has(f));
+
+    const prompt = `You are an expert Hebrew e-commerce content writer specializing in watches.
+Your task: fill in ONLY the missing fields listed below for this product.
+
+Product info:
 - Name: ${product.name}
 - Brand: ${product.brand}
 - Category: ${product.category}
 - Sale Price: ₪${product.salePrice}
 - Model / SKU: ${product.itemId}
 - Warranty: ${product.warrantyText || (product.warranty + ' חודשים')}
-${product.movement ? `- Movement: ${product.movement}` : ''}${product.diameter ? `\n- Diameter: ${product.diameter}` : ''}${product.material ? `\n- Material: ${product.material}` : ''}${product.gender ? `\n- Gender: ${product.gender}` : ''}${product.waterResistance ? `\n- Water Resistance: ${product.waterResistance}` : ''}${product.glass ? `\n- Glass: ${product.glass}` : ''}
+${product.movement      ? `- Movement (existing): ${product.movement}`           : ''}
+${product.diameter      ? `- Diameter (existing): ${product.diameter}`           : ''}
+${product.material      ? `- Material (existing): ${product.material}`           : ''}
+${product.gender        ? `- Gender (existing): ${product.gender}`               : ''}
+${product.waterResistance ? `- Water Resistance (existing): ${product.waterResistance}` : ''}
+${product.glass         ? `- Glass (existing): ${product.glass}`                 : ''}
+${product.watchStyle    ? `- Watch Style (existing): ${product.watchStyle}`      : ''}
+${product.strapMaterial ? `- Strap Material (existing): ${product.strapMaterial}` : ''}
+${product.caseMaterial  ? `- Case Material (existing): ${product.caseMaterial}` : ''}
 ${brandConfig ? `Brand Config: Warranty=${brandConfig.warranty}, MinPrice=₪${brandConfig.minPrice}` : ''}
-Missing fields to fill: ${missing.join(', ')}
+
+Missing CONTENT fields to generate: ${missingContent.join(', ') || '(none)'}
+Missing SPEC fields to fill: ${missingSpecs.join(', ') || '(none)'}
 
 Style guide for descriptions: ${styles[writingStyle] || styles.marketing}
 
-STRICT RULES:
-1. All text must be in Hebrew
-2. description: 150-200 words, compelling marketing copy, no bullet points inside
+═══ RULES FOR CONTENT FIELDS (description, shortDescription, seoTitle, seoDescription, seoKeywords, name) ═══
+1. All text MUST be in Hebrew
+2. description: 150-200 words, compelling marketing copy based on EXISTING specs only, no bullet points
 3. shortDescription: 2 concise sentences
-4. seoTitle: max 60 chars — "שעון יד [מותג] [דגם] | [benefit]"
+4. seoTitle: max 60 chars — format "שעון יד [מותג] [דגם] | [benefit]"
 5. seoDescription: 150-160 chars max
-6. seoKeywords: comma-separated string, 5-8 keywords in Hebrew
-7. gender: one of exactly: גבר | אישה | יוניסקס | ילדים
-8. waterResistance: e.g. "30M", "50M", "100M", "200M"
-9. glass: e.g. "מינרל", "ספיר", "אקריל"
-10. movement: e.g. "קוורץ יפני", "אוטומטי", "מכני"
-11. diameter: e.g. "42 מ\"מ", "38 מ\"מ"
-12. material: e.g. "נירוסטה", "עור", "סיליקון"
-13. Infer missing watch specs from the product name/model number using your knowledge
-14. name: Write an appealing, clean title combining brand, model and gender, max 60 chars.
+6. seoKeywords: comma-separated string, 5-8 Hebrew keywords
+7. name: clean title with brand + model + gender context, max 60 chars
+8. NEVER invent or mention specs in the description that are not listed in the existing product data above
+
+═══ RULES FOR SPEC FIELDS (movement, glass, waterResistance, strapMaterial, caseMaterial, material, diameter, gender, watchStyle, colors) ═══
+⚠️  ACCURACY IS CRITICAL — retailers display this data to customers. A wrong spec is WORSE than an empty field.
+9.  ONLY fill a spec field if you have VERIFIED, HIGH-CONFIDENCE knowledge of this EXACT model number (${product.itemId}) or the product name clearly states the spec.
+10. If you are not certain → return "" (empty string). DO NOT GUESS. DO NOT ASSUME based on brand, price or category alone.
+11. If the product name/SKU explicitly encodes a spec (e.g. name contains "Automatic", "Sapphire", "Leather", "Steel", "100M") → use it.
+12. If you know this specific model from your training data and are confident → fill it in.
+13. If you are even slightly unsure → return "".
+
+═══ ALLOWED VALUES FOR SPEC FIELDS ═══
+- gender: men | women | unisex
+- waterResistance: splash-resistant | up-to-30m | up-to-50m | up-to-100m | up-to-200m | diver-200m-plus
+- glass: sapphire-crystal | mineral-glass | acrylic | mineral-crystal
+- movement: quartz | automatic | mechanical-manual | solar | kinetic | smartwatch | automatic-in-house
+- diameter: free text e.g. "42 מ\"מ" (only if explicitly known)
+- material: free text e.g. "נירוסטה" (legacy field, only if certain)
+- watchStyle: luxury | minimalist | chronograph | classic | dress | fashion | military-watch | modern-design | sport | tactical | dive
+- strapMaterial: stainless-steel | titanium | gold | ceramic | pvd | dlc | leather | rubber | silicone | fabric-nato
+- caseMaterial: stainless-steel | titanium | gold | ceramic | dlc | CARBONOX | bronze | pvd | metal-alloy | silver-plated | silver-plated-metal | rose-gold-plated-metal | gold-plated-metal
+- colors: comma-separated 1-3 keys from: black | white | gray | cream | silver | gold | rose-gold | titanium | bronze | blue | navy-blue | green | olive-green | red | burgundy | brown | yellow | champagne | Rose Gold
 
 Return ONLY valid JSON (no markdown, no \`\`\`, no intro text, start with {):
-{"name":"","description":"","shortDescription":"","movement":"","diameter":"","material":"","gender":"","waterResistance":"","glass":"","seoTitle":"","seoDescription":"","seoKeywords":""}`;
+{"name":"","description":"","shortDescription":"","movement":"","diameter":"","material":"","gender":"","waterResistance":"","glass":"","watchStyle":"","strapMaterial":"","caseMaterial":"","colors":"","seoTitle":"","seoDescription":"","seoKeywords":""}`;
 
     try {
       const result = await ai.models.generateContent({ model, contents: prompt });
@@ -535,13 +568,15 @@ Return ONLY valid JSON (no markdown, no \`\`\`, no intro text, start with {):
   app.post('/api/eshop/generate-image', authenticate, async (req, res) => {
     const { product, model = 'gemini-flash-image-generation' } = req.body;
 
+    const genderStyle = product.gender === 'women' ? 'Elegant feminine style.' : product.gender === 'men' ? 'Classic masculine style.' : '';
     const prompt = `Professional luxury watch product photography for e-commerce.
 Watch: ${product.name}
 Brand: ${product.brand}
 Pure white background, studio lighting, sharp focus on the watch face and all details.
-${product.material ? 'Case/strap material: ' + product.material + '.' : ''}
-${product.diameter ? 'Watch size: ' + product.diameter + '.' : ''}
-${product.gender === 'אישה' ? 'Elegant feminine style.' : product.gender === 'ילדים' ? 'Colorful kids watch.' : 'Classic masculine style.'}
+${product.strapMaterial ? 'Strap material: ' + product.strapMaterial + '.' : product.material ? 'Material: ' + product.material + '.' : ''}
+${product.caseMaterial  ? 'Case material: '  + product.caseMaterial  + '.' : ''}
+${product.diameter      ? 'Watch size: '      + product.diameter      + '.' : ''}
+${genderStyle}
 High-resolution commercial product photo. No watermarks, no text, no props, no reflections.`;
 
     try {

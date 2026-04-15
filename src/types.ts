@@ -20,6 +20,11 @@ export interface EshopProduct {
   gender: string;
   waterResistance: string;
   glass: string;
+  // Taxonomy fields
+  watchStyle: string;    // key from WATCH_STYLES
+  strapMaterial: string; // key from STRAP_MATERIALS
+  caseMaterial: string;  // key from CASE_MATERIALS
+  colors: string;        // comma-separated keys from COLORS (stored as string in eShop)
   // Core
   category: string;
   subCategory: string;
@@ -87,7 +92,12 @@ export interface Product {
   material?: string;
   waterResistance?: string;
   glass?: string;
-  
+  // Taxonomy fields
+  watchStyle?: string;    // key from WATCH_STYLES
+  strapMaterial?: string; // key from STRAP_MATERIALS
+  caseMaterial?: string;  // key from CASE_MATERIALS
+  colors?: string[];      // keys from COLORS
+
   filters: string[];
   seoKeywords: string[];
   images: string[];

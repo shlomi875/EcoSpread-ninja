@@ -11,6 +11,10 @@ import {
 import { cn } from '../lib/utils';
 import { translations, Language } from '../i18n';
 import { CompanySettings, EshopProduct, Product } from '../types';
+import {
+  MECHANISMS, GENDERS, WATER_RESISTANCES, GLASS_TYPES,
+  WATCH_STYLES, STRAP_MATERIALS, CASE_MATERIALS, COLORS,
+} from '../constants/taxonomy';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type PipelineStep = 'import' | 'enrich' | 'images' | 'export';
@@ -135,6 +139,10 @@ function mapEshopToProduct(p: EshopProduct): Product {
     material: p.material,
     waterResistance: p.waterResistance,
     glass: p.glass,
+    watchStyle: p.watchStyle,
+    strapMaterial: p.strapMaterial,
+    caseMaterial: p.caseMaterial,
+    colors: p.colors ? p.colors.split(',').map(s => s.trim()).filter(Boolean) : [],
     filters: [],
     seoKeywords: p.seoKeywords ? p.seoKeywords.split(',').map(s => s.trim()) : [],
     images: p.images ? p.images.split(';').filter(Boolean) : [],
@@ -203,6 +211,17 @@ function ProductDetailPanel({ product, onSave, onClose, language }: {
 
       {/* Fields */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* Sale Price */}
+        <div>
+          <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">{t.salePrice || 'מחיר מכירה'}</label>
+          <input
+            type="text"
+            value={field('salePrice')}
+            onChange={e => set('salePrice', e.target.value)}
+            placeholder="₪0"
+            className={cn(inputCls, "border-orange-200 bg-orange-50/30 focus:ring-orange-400")}
+          />
+        </div>
         {/* Description */}
         <div>
           <label className="block text-xs font-bold text-gray-700 mb-1 uppercase">{t.description}</label>
@@ -218,17 +237,112 @@ function ProductDetailPanel({ product, onSave, onClose, language }: {
         <div>
           <label className="block text-xs font-bold text-gray-700 mb-2 uppercase">{t.filters}</label>
           <div className="grid grid-cols-2 gap-2">
-            {([
-              ['movement', t.movement], ['diameter', t.diameter],
-              ['material', t.material], ['gender', t.gender],
-              ['waterResistance', t.waterResistance], ['glass', t.glass],
-            ] as [keyof EshopProduct, string][]).map(([k, label]) => (
-              <div key={k}>
-                <label className="block text-[10px] text-gray-500 mb-0.5">{label}</label>
-                <input value={field(k)} onChange={e => set(k, e.target.value)}
-                  className="w-full px-2 py-1.5 border rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 outline-none" />
-              </div>
-            ))}
+            {/* Movement */}
+            <div>
+              <label className="block text-[10px] text-gray-500 mb-0.5">{t.movement}</label>
+              <select value={field('movement')} onChange={e => set('movement', e.target.value)}
+                className="w-full px-2 py-1.5 border rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 outline-none">
+                <option value="">{language === 'he' ? 'בחר' : 'Select'}</option>
+                {MECHANISMS.map(m => <option key={m.key} value={m.key}>{m.name}</option>)}
+              </select>
+            </div>
+            {/* Diameter — free text */}
+            <div>
+              <label className="block text-[10px] text-gray-500 mb-0.5">{t.diameter}</label>
+              <input value={field('diameter')} onChange={e => set('diameter', e.target.value)}
+                placeholder={'42 מ"מ'}
+                className="w-full px-2 py-1.5 border rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 outline-none" />
+            </div>
+            {/* Material — free text (legacy field) */}
+            <div>
+              <label className="block text-[10px] text-gray-500 mb-0.5">{t.material}</label>
+              <input value={field('material')} onChange={e => set('material', e.target.value)}
+                className="w-full px-2 py-1.5 border rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 outline-none" />
+            </div>
+            {/* Gender */}
+            <div>
+              <label className="block text-[10px] text-gray-500 mb-0.5">{t.gender}</label>
+              <select value={field('gender')} onChange={e => set('gender', e.target.value)}
+                className="w-full px-2 py-1.5 border rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 outline-none">
+                <option value="">{language === 'he' ? 'בחר' : 'Select'}</option>
+                {GENDERS.map(g => <option key={g.key} value={g.key}>{g.name}</option>)}
+              </select>
+            </div>
+            {/* Water Resistance */}
+            <div>
+              <label className="block text-[10px] text-gray-500 mb-0.5">{t.waterResistance}</label>
+              <select value={field('waterResistance')} onChange={e => set('waterResistance', e.target.value)}
+                className="w-full px-2 py-1.5 border rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 outline-none">
+                <option value="">{language === 'he' ? 'בחר' : 'Select'}</option>
+                {WATER_RESISTANCES.map(w => <option key={w.key} value={w.key}>{w.name}</option>)}
+              </select>
+            </div>
+            {/* Glass */}
+            <div>
+              <label className="block text-[10px] text-gray-500 mb-0.5">{t.glass}</label>
+              <select value={field('glass')} onChange={e => set('glass', e.target.value)}
+                className="w-full px-2 py-1.5 border rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 outline-none">
+                <option value="">{language === 'he' ? 'בחר' : 'Select'}</option>
+                {GLASS_TYPES.map(g => <option key={g.key} value={g.key}>{g.name}</option>)}
+              </select>
+            </div>
+            {/* Watch Style */}
+            <div>
+              <label className="block text-[10px] text-gray-500 mb-0.5">{t.watchStyle || 'סגנון שעון'}</label>
+              <select value={field('watchStyle')} onChange={e => set('watchStyle', e.target.value)}
+                className="w-full px-2 py-1.5 border rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 outline-none">
+                <option value="">{language === 'he' ? 'בחר' : 'Select'}</option>
+                {WATCH_STYLES.map(s => <option key={s.key} value={s.key}>{s.name}</option>)}
+              </select>
+            </div>
+            {/* Strap Material */}
+            <div>
+              <label className="block text-[10px] text-gray-500 mb-0.5">{t.strapMaterial || 'חומר רצועה'}</label>
+              <select value={field('strapMaterial')} onChange={e => set('strapMaterial', e.target.value)}
+                className="w-full px-2 py-1.5 border rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 outline-none">
+                <option value="">{language === 'he' ? 'בחר' : 'Select'}</option>
+                {STRAP_MATERIALS.map(m => <option key={m.key} value={m.key}>{m.name}</option>)}
+              </select>
+            </div>
+            {/* Case Material */}
+            <div className="col-span-2">
+              <label className="block text-[10px] text-gray-500 mb-0.5">{t.caseMaterial || 'חומר קייס'}</label>
+              <select value={field('caseMaterial')} onChange={e => set('caseMaterial', e.target.value)}
+                className="w-full px-2 py-1.5 border rounded-lg text-xs focus:ring-2 focus:ring-indigo-500 outline-none">
+                <option value="">{language === 'he' ? 'בחר' : 'Select'}</option>
+                {CASE_MATERIALS.map(m => <option key={m.key} value={m.key}>{m.name}</option>)}
+              </select>
+            </div>
+          </div>
+          {/* Colors — multi-select pills */}
+          <div className="mt-3">
+            <label className="block text-[10px] text-gray-500 mb-1.5">{t.colors || 'צבעים'}</label>
+            <div className="flex flex-wrap gap-1.5">
+              {COLORS.map(color => {
+                const currentColors = (draft.colors || '').split(',').map(s => s.trim()).filter(Boolean);
+                const selected = currentColors.includes(color.key);
+                return (
+                  <button
+                    key={color.key}
+                    type="button"
+                    onClick={() => {
+                      const next = selected
+                        ? currentColors.filter(k => k !== color.key)
+                        : [...currentColors, color.key];
+                      set('colors', next.join(', '));
+                    }}
+                    className={cn(
+                      "flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[10px] font-medium transition-all",
+                      selected ? "border-indigo-500 bg-indigo-50 text-indigo-700" : "border-gray-200 bg-white text-gray-600 hover:border-gray-400"
+                    )}
+                    title={color.name}
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full border border-gray-300 flex-shrink-0" style={{ backgroundColor: color.hex }} />
+                    {color.name}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
         {/* SEO */}
