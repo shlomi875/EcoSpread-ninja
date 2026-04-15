@@ -10,7 +10,7 @@ import { existsSync, mkdirSync, writeFileSync } from 'fs';
 import { GoogleGenAI } from '@google/genai';
 import { db } from './src/db/client';
 import { users, products, assets, companySettings } from './src/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, inArray, or } from 'drizzle-orm';
 import 'dotenv/config';
 
 const __dirname = process.cwd();
@@ -352,33 +352,117 @@ Output: Provide ONLY the generated text, ready to copy and paste.`,
     }
   });
 
+  // ── Helper: resolve an image URL/path to base64 ──────────────────────────
+  async function resolveImageToBase64(imageUrl: string): Promise<{ data: string; mimeType: string } | null> {
+    try {
+      let imageData: string;
+      let mimeType = 'image/jpeg';
+      if (imageUrl.startsWith('/uploads/')) {
+        const filePath = path.join(UPLOADS_DIR, path.basename(imageUrl));
+        if (!existsSync(filePath)) return null;
+        const { readFileSync } = await import('fs');
+        const ext = path.extname(imageUrl).toLowerCase().replace('.', '');
+        mimeType = ext === 'png' ? 'image/png' : 'image/jpeg';
+        imageData = readFileSync(filePath).toString('base64');
+      } else if (imageUrl.startsWith('data:image/')) {
+        // Already base64
+        const [meta, b64] = imageUrl.split(',');
+        const m = meta.match(/:(.*?);/);
+        mimeType = m ? m[1] : 'image/jpeg';
+        imageData = b64;
+      } else {
+        // External URL
+        const { default: https } = await import('https');
+        const { default: http } = await import('http');
+        const protocol = imageUrl.startsWith('https') ? https : http;
+        imageData = await new Promise((resolve, reject) => {
+          protocol.get(imageUrl, (response) => {
+            const chunks: Buffer[] = [];
+            response.on('data', (chunk: Buffer) => chunks.push(chunk));
+            response.on('end', () => resolve(Buffer.concat(chunks).toString('base64')));
+            response.on('error', reject);
+          }).on('error', reject);
+        });
+        if (imageUrl.toLowerCase().endsWith('.png')) mimeType = 'image/png';
+      }
+      return { data: imageData, mimeType };
+    } catch {
+      return null;
+    }
+  }
+
   app.post('/api/ai/seo-audit', authenticate, async (req, res) => {
     const { products: auditProducts, language, model = 'gemini-2.0-flash' } = req.body;
     try {
-      const prompt = `Analyze the following e-commerce products for SEO, AEO (Answer Engine Optimization), and GEO (Generative Engine Optimization).
+      // ── Step 1: Vision pre-pass — extract VISUAL GROUND TRUTH from product images ──
+      const visionData: Record<string, any> = {};
+      for (const p of auditProducts) {
+        const firstImage = Array.isArray(p.images) ? p.images[0] : (p.images || '');
+        if (!firstImage) continue;
+        try {
+          const resolved = await resolveImageToBase64(firstImage);
+          if (!resolved) continue;
+          const visionResult = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: [{ role: 'user', parts: [
+              { inlineData: { data: resolved.data, mimeType: resolved.mimeType } },
+              { text: `Analyze this watch product image. Extract ONLY what you can VISUALLY CONFIRM with certainty.
+Return ONLY valid JSON (no markdown, start with {):
+{
+  "colors": ["e.g. black, silver — only clearly visible colors"],
+  "strapMaterial": "silicone|leather|stainless-steel|rubber|fabric-nato|ceramic|titanium — or empty string if unsure",
+  "caseMaterial": "stainless-steel|gold|titanium|ceramic|pvd|dlc — or empty string if unsure",
+  "watchStyle": "luxury|minimalist|chronograph|classic|dress|sport|dive|fashion|military-watch — or empty string",
+  "dialColor": "main dial/face color description",
+  "visualDescription": "1-2 precise sentences describing what you visually see: strap type, case shape, dial color, any visible features"
+}
+Be conservative — return empty string for anything not clearly visible.` }
+            ]}]
+          });
+          const vt = visionResult.text?.trim() ?? '';
+          const vm = vt.match(/\{[\s\S]*?\}/);
+          if (vm) visionData[p.id] = JSON.parse(vm[0]);
+        } catch (vErr: any) {
+          console.warn(`Vision pass skipped for product ${p.id}:`, vErr.message);
+        }
+      }
+
+      // ── Step 2: SEO audit with vision-corrected context ───────────────────────
+      const prompt = `Analyze the following e-commerce watch products for SEO, AEO (Answer Engine Optimization), and GEO (Generative Engine Optimization).
 For each product, provide:
 1. A Score (0-100).
 2. Key improvements for Title, Description, and Keywords.
-3. An "Upgraded Content" version that is optimized for conversion and search engines.
+3. An "Upgraded Content" version optimized for conversion and search engines.
+
+CRITICAL RULE: Each product may have a "VISUAL GROUND TRUTH" section extracted directly from the product image.
+These visual facts are 100% accurate and MUST override any conflicting text data.
+If the visual data says "silicone strap" but the name says "metal strap" — use silicone in the upgraded content.
+If visual data says colors include "black" — reflect that accurately in the upgraded name and description.
 
 Products to analyze:
-${auditProducts.map((p: any) => `
+${auditProducts.map((p: any) => {
+  const vision = visionData[p.id];
+  return `
 ID: ${p.id}
 Name: ${p.name}
 Description: ${p.description}
 Keywords: ${p.seoKeywords?.join(', ')}
-Specs: ${p.movement}, ${p.diameter}, ${p.material}
-`).join('\n---\n')}
+Existing Specs: movement=${p.movement || '?'}, diameter=${p.diameter || '?'}, material=${p.material || '?'}, strapMaterial=${p.strapMaterial || '?'}, caseMaterial=${p.caseMaterial || '?'}, colors=${Array.isArray(p.colors) ? p.colors.join(', ') : p.colors || '?'}
+${vision ? `⚡ VISUAL GROUND TRUTH (from image — use these as facts):
+  - Strap Material: ${vision.strapMaterial || 'not detected'}
+  - Case Material: ${vision.caseMaterial || 'not detected'}
+  - Colors: ${vision.colors?.join(', ') || 'not detected'}
+  - Watch Style: ${vision.watchStyle || 'not detected'}
+  - Dial Color: ${vision.dialColor || 'not detected'}
+  - Visual Description: ${vision.visualDescription || 'n/a'}` : '(no image available for visual analysis)'}`;
+}).join('\n---\n')}
 
 Language: ${language === 'he' ? 'Hebrew' : 'English'}
 
-STRICT FORMATTING: Return ONLY a valid JSON array of objects (one per product):
+STRICT FORMATTING: Return ONLY a valid JSON array (one object per product, no markdown):
 [{"id": "", "score": 85, "suggestions": "...", "upgradedName": "...", "upgradedDescription": "...", "upgradedKeywords": []}]`;
 
-      const response = await ai.models.generateContent({
-        model,
-        contents: prompt,
-      });
+      const response = await ai.models.generateContent({ model, contents: prompt });
       const text = response.text || '';
       const match = text.match(/\[[\s\S]*\]/);
       if (!match) throw new Error('No JSON found in response');
@@ -748,6 +832,37 @@ Keep the watch as the main subject. Preserve all watch details and branding.`;
     } catch (err: any) {
       console.error('eShop edit-image error:', err.message);
       res.status(500).json({ error: 'Image editing failed', detail: err.message });
+    }
+  });
+
+  // ─── eShop: Check which products already exist in the DB ────────────
+  // Receives { itemIds: string[] } (CSV itemId / SKU values)
+  // Returns { existing: string[] } — the subset that is already in the DB
+  app.post('/api/eshop/check-existing', authenticate, async (req, res) => {
+    const { itemIds = [] } = req.body as { itemIds: string[] };
+    if (!itemIds.length) return res.json({ existing: [] });
+    try {
+      // Filter empty strings
+      const ids = itemIds.map(String).filter(Boolean);
+      if (!ids.length) return res.json({ existing: [] });
+
+      // Match on sku OR modelNumber — either column can hold the itemId
+      const rows = await db
+        .select({ sku: products.sku, modelNumber: products.modelNumber })
+        .from(products)
+        .where(or(inArray(products.sku, ids), inArray(products.modelNumber, ids)));
+
+      // Build a set of all matched identifiers
+      const existingSet = new Set<string>();
+      rows.forEach(r => {
+        if (r.sku)         existingSet.add(r.sku);
+        if (r.modelNumber) existingSet.add(r.modelNumber);
+      });
+
+      res.json({ existing: [...existingSet] });
+    } catch (e: any) {
+      console.error('check-existing error:', e.message);
+      res.status(500).json({ error: 'Failed to check existing products', detail: e.message });
     }
   });
 

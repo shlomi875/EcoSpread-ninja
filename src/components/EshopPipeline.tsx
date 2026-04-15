@@ -726,6 +726,8 @@ export function EshopPipeline({ language, settings, onSaveToInventory }: EshopPi
   const [brandFilter, setBrandFilter] = useState('');
   const [isEnriching, setIsEnriching] = useState(false);
   const [enrichProgress, setEnrichProgress] = useState<EnrichProgress>({ current: 0, total: 0, currentName: '' });
+  const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
+  const [duplicateCount, setDuplicateCount] = useState(0);
   const [selectedProduct, setSelectedProduct] = useState<EshopProduct | null>(null);  // detail panel
   const [selectedForImage, setSelectedForImage] = useState<EshopProduct | null>(null); // image studio
   const [selectedModel, setSelectedModel] = useState('gemini-2.5-flash');
@@ -765,6 +767,35 @@ export function EshopPipeline({ language, settings, onSaveToInventory }: EshopPi
     onDrop, accept: { 'text/csv': ['.csv'], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] },
     multiple: false, disabled: isParsing,
   });
+
+  // ── Duplicate check before moving to enrich step ────────────────────────────
+  const proceedToEnrich = async () => {
+    setIsCheckingDuplicates(true);
+    setDuplicateCount(0);
+    try {
+      const itemIds = products.map(p => p.itemId).filter(Boolean);
+      const r = await fetch('/api/eshop/check-existing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ itemIds }),
+      });
+      if (r.ok) {
+        const { existing }: { existing: string[] } = await r.json();
+        if (existing.length > 0) {
+          const existingSet = new Set(existing);
+          setProducts(prev => prev.map(p =>
+            existingSet.has(p.itemId) ? { ...p, _status: 'skipped' } : p
+          ));
+          setDuplicateCount(existing.length);
+        }
+      }
+    } catch {
+      // silently continue — duplicate check is best-effort
+    } finally {
+      setIsCheckingDuplicates(false);
+      setStep('enrich');
+    }
+  };
 
   // ── Enrichment ───────────────────────────────────────────────────────────────
   const startEnrichment = async () => {
@@ -885,11 +916,12 @@ export function EshopPipeline({ language, settings, onSaveToInventory }: EshopPi
                 <div className="flex items-center gap-6">
                   {[
                     { val: filteredProducts.length, label: t.productsLoaded, color: 'indigo' },
-                    { val: filteredProducts.filter(p => needsEnrichment(p)).length, label: t.needsEnrichment, color: 'orange' },
+                    { val: filteredProducts.filter(p => needsEnrichment(p) && p._status !== 'skipped').length, label: t.needsEnrichment, color: 'orange' },
                     { val: filteredProducts.filter(p => !needsEnrichment(p)).length, label: t.allGood, color: 'green' },
+                    ...(duplicateCount > 0 ? [{ val: duplicateCount, label: language === 'he' ? 'קיים במלאי' : 'Already in DB', color: 'gray' }] : []),
                   ].map(({ val, label, color }) => (
                     <div key={label} className="text-center">
-                      <p className={cn('text-2xl font-black', color === 'indigo' ? 'text-indigo-700' : color === 'orange' ? 'text-orange-600' : 'text-green-600')}>{val}</p>
+                      <p className={cn('text-2xl font-black', color === 'indigo' ? 'text-indigo-700' : color === 'orange' ? 'text-orange-600' : color === 'gray' ? 'text-gray-500' : 'text-green-600')}>{val}</p>
                       <p className="text-xs text-gray-500 font-medium">{label}</p>
                     </div>
                   ))}
@@ -938,10 +970,24 @@ export function EshopPipeline({ language, settings, onSaveToInventory }: EshopPi
                   <button disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)} className="px-3 py-1.5 border rounded-lg hover:bg-white disabled:opacity-40">Next ›</button>
                 </div>
               )}
-              <div className="p-5 border-t flex justify-end">
-                <button onClick={() => setStep('enrich')}
-                  className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-all active:scale-95">
-                  <Sparkles className="w-4 h-4" /> {t.proceedToEnrich}
+              <div className="p-5 border-t flex items-center justify-between gap-4">
+                {duplicateCount > 0 && (
+                  <span className="text-xs text-gray-500 flex items-center gap-1.5">
+                    <SkipForward className="w-3.5 h-3.5 text-gray-400" />
+                    <span className="font-semibold text-gray-700">{duplicateCount}</span>
+                    {language === 'he' ? 'מוצרים קיימים יסומנו כ-Skip אוטומטית' : 'existing products will be skipped automatically'}
+                  </span>
+                )}
+                <button
+                  onClick={proceedToEnrich}
+                  disabled={isCheckingDuplicates}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-semibold shadow-md shadow-indigo-200 hover:bg-indigo-700 transition-all active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed ms-auto"
+                >
+                  {isCheckingDuplicates ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> {language === 'he' ? 'בודק כפילויות...' : 'Checking duplicates...'}</>
+                  ) : (
+                    <><Sparkles className="w-4 h-4" /> {t.proceedToEnrich}</>
+                  )}
                 </button>
               </div>
             </div>
