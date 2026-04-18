@@ -286,21 +286,64 @@ async function jsonOrText(r: Response): Promise<any> {
   try { return JSON.parse(text); } catch { return text; }
 }
 
+/** Cloudflare often challenges datacenter IPs; Node fetch cannot run the JS challenge. */
+function isCloudflareChallengePage(status: number, bodyStr: string): boolean {
+  if (status !== 403 && status !== 503) return false;
+  return (
+    bodyStr.includes('Just a moment') ||
+    bodyStr.includes('cf-chl') ||
+    bodyStr.includes('challenge-platform') ||
+    bodyStr.includes('Enable JavaScript and cookies') ||
+    bodyStr.includes('_cf_chl_opt')
+  );
+}
+
+function eshopHttpErrorMessage(method: string, pathname: string, r: Response, data: any): string {
+  const bodyStr = typeof data === 'string' ? data : JSON.stringify(data);
+  const cfRay = r.headers.get('cf-ray');
+  if (isCloudflareChallengePage(r.status, bodyStr)) {
+    return [
+      'Cloudflare חסם את הבקשה (אתגר דפדפן / Bot protection).',
+      'Cloudflare blocked this request — EcoSpread runs on the server and cannot pass the JS challenge.',
+      cfRay ? `cf-ray: ${cfRay}` : '',
+      'Fix: ask e-shops hosting to allowlist your server\'s public outbound IP for restapi.e-shops.co.il,',
+      'or add a WAF rule to skip challenges for /api/* from that IP.',
+    ].filter(Boolean).join(' ');
+  }
+  const short =
+    typeof data === 'string'
+      ? bodyStr.length > 480
+        ? bodyStr.slice(0, 480) + '…'
+        : bodyStr
+      : bodyStr.length > 480
+        ? bodyStr.slice(0, 480) + '…'
+        : bodyStr;
+  return `${method} ${pathname} HTTP ${r.status}: ${short}`;
+}
+
+/** Some Cloudflare configs are less strict when the request looks like a normal browser. */
+const ESHOP_FETCH_HEADERS: Record<string, string> = {
+  Accept: 'application/json, text/plain, */*',
+  'Accept-Language': 'he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7',
+  'User-Agent':
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+};
+
 export async function eshopGet(pathname: string, query: Record<string, any> = {}): Promise<any> {
-  const r = await fetch(buildUrl(pathname, query), { method: 'GET' });
+  const r = await fetch(buildUrl(pathname, query), { method: 'GET', headers: { ...ESHOP_FETCH_HEADERS } });
   const data = await jsonOrText(r);
-  if (!r.ok) throw new Error(`GET ${pathname} ${r.status}: ${typeof data === 'string' ? data : JSON.stringify(data)}`);
+  if (!r.ok) throw new Error(eshopHttpErrorMessage('GET', pathname, r, data));
   return data;
 }
 
 export async function eshopPost(pathname: string, body: unknown, query: Record<string, any> = {}): Promise<any> {
   const r = await fetch(buildUrl(pathname, query), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    headers: { ...ESHOP_FETCH_HEADERS, 'Content-Type': 'application/json' },
     body: JSON.stringify(body ?? {}),
   });
   const data = await jsonOrText(r);
-  if (!r.ok) throw new Error(`POST ${pathname} ${r.status}: ${typeof data === 'string' ? data : JSON.stringify(data)}`);
+  if (!r.ok) throw new Error(eshopHttpErrorMessage('POST', pathname, r, data));
   return data;
 }
 
