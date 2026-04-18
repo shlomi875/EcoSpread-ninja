@@ -125,10 +125,38 @@ export interface PushableProduct {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-const BASE_URL = process.env.ESHOP_API_BASE || 'https://restapi.e-shops.co.il';
+/** Coolify / Docker often inject quoted values — e-shops expects a bare GUID or SQL fails (HTTP 500). */
+export function normalizedEshopApiKey(): string {
+  let k = process.env.ESHOP_API_KEY ?? '';
+  k = k.replace(/^\uFEFF/, '').trim();
+  if ((k.startsWith('"') && k.endsWith('"')) || (k.startsWith("'") && k.endsWith("'"))) {
+    k = k.slice(1, -1).trim();
+  }
+  return k;
+}
+
+const BASE_URL = (process.env.ESHOP_API_BASE || 'https://restapi.e-shops.co.il').trim().replace(/\/$/, '');
 
 export function isConfigured(): boolean {
-  return !!process.env.ESHOP_API_KEY;
+  return normalizedEshopApiKey().length > 0;
+}
+
+/** API returns `{ Departments: [...] }` — count Category + SubCategory nodes for health metrics. */
+export function countEshopCategoryResponse(data: any): number {
+  if (!data || typeof data !== 'object') return 0;
+  const walk = (node: any): number => {
+    if (!node || typeof node !== 'object') return 0;
+    let n = node.Type === 'Category' || node.Type === 'SubCategory' ? 1 : 0;
+    const ch = node.Children;
+    if (Array.isArray(ch)) n += ch.reduce((s: number, c: any) => s + walk(c), 0);
+    return n;
+  };
+  const depts = data.Departments;
+  if (Array.isArray(depts)) return depts.reduce((s: number, d: any) => s + walk(d), 0);
+  if (Array.isArray(data)) return data.reduce((s: number, x: any) => s + walk(x), 0);
+  if (Array.isArray(data.Categories)) return data.Categories.length;
+  if (Array.isArray(data.categories)) return data.categories.length;
+  return 0;
 }
 
 export class EshopNotConfiguredError extends Error {
@@ -246,7 +274,7 @@ export function buildExpandProduct(p: PushableProduct, origin?: string): ExpandP
 function buildUrl(pathname: string, query: Record<string, string | number | undefined> = {}) {
   if (!isConfigured()) throw new EshopNotConfiguredError();
   const qs = new URLSearchParams();
-  qs.set('key', process.env.ESHOP_API_KEY as string);
+  qs.set('key', normalizedEshopApiKey());
   for (const [k, v] of Object.entries(query)) {
     if (v !== undefined && v !== null && v !== '') qs.set(k, String(v));
   }

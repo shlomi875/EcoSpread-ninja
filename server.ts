@@ -16,6 +16,7 @@ import {
   isConfigured as eshopConfigured,
   getCategories as eshopGetCategories,
   pushProduct as eshopPushProduct,
+  countEshopCategoryResponse,
   PushableProduct,
   PushResult,
 } from './src/services/eshopApi';
@@ -885,13 +886,15 @@ Keep the watch as the main subject. Preserve all watch details and branding.`;
     }
     try {
       const data = await eshopGetCategories('he');
-      const count = Array.isArray(data) ? data.length
-        : Array.isArray(data?.Categories) ? data.Categories.length
-        : Array.isArray(data?.categories) ? data.categories.length
-        : 0;
+      const count = countEshopCategoryResponse(data);
       res.json({ configured: true, ok: true, categoriesCount: count });
     } catch (e: any) {
-      res.json({ configured: true, ok: false, error: e?.message || 'eShop request failed' });
+      console.error('[api/eshop/health] eShop request failed:', e?.message || e);
+      res.json({
+        configured: true,
+        ok: false,
+        error: e?.message || 'eShop request failed',
+      });
     }
   });
 

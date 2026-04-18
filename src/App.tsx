@@ -39,7 +39,12 @@ export default function App() {
   const [selectedAuditProducts, setSelectedAuditProducts] = useState<Product[]>([]);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [isViewMode, setIsViewMode] = useState(false);
-  const [eshopHealth, setEshopHealth] = useState<{ configured: boolean; ok: boolean } | null>(null);
+  const [eshopHealth, setEshopHealth] = useState<{
+    configured: boolean;
+    ok: boolean;
+    categoriesCount?: number;
+    error?: string;
+  } | null>(null);
   const [pushingIds, setPushingIds] = useState<Set<string>>(new Set());
   const [pushStatuses, setPushStatuses] = useState<Record<string, 'added' | 'updated' | 'error' | undefined>>({});
 
@@ -87,9 +92,23 @@ export default function App() {
   const loadEshopHealth = useCallback(async () => {
     try {
       const r = await fetch('/api/eshop/health');
-      if (r.ok) setEshopHealth(await r.json());
-      else setEshopHealth({ configured: false, ok: false });
-    } catch { setEshopHealth({ configured: false, ok: false }); }
+      if (r.ok) {
+        setEshopHealth(await r.json());
+      } else {
+        const j = await r.json().catch(() => ({}));
+        setEshopHealth({
+          configured: false,
+          ok: false,
+          error: (j as any).error || `HTTP ${r.status}`,
+        });
+      }
+    } catch (e: any) {
+      setEshopHealth({
+        configured: false,
+        ok: false,
+        error: e?.message || 'Network error',
+      });
+    }
   }, []);
 
   useEffect(() => {
@@ -379,7 +398,13 @@ export default function App() {
                 {isLoading && <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />}
                 {eshopHealth && (
                   <div
-                    title={eshopHealth.ok ? 'restapi.e-shops.co.il' : ''}
+                    title={
+                      eshopHealth.ok
+                        ? `restapi.e-shops.co.il${eshopHealth.categoriesCount != null ? ` · ${eshopHealth.categoriesCount} categories` : ''}`
+                        : (eshopHealth.error || '').length > 240
+                          ? (eshopHealth.error || '').slice(0, 240) + '…'
+                          : (eshopHealth.error || (language === 'he' ? 'לא ניתן להתחבר ל-API' : 'Cannot reach eShop API'))
+                    }
                     className={cn(
                       "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border",
                       eshopHealth.ok
@@ -452,7 +477,13 @@ export default function App() {
               </div>
               {eshopHealth && (
                 <div
-                  title={eshopHealth.ok ? 'restapi.e-shops.co.il' : ''}
+                  title={
+                    eshopHealth.ok
+                      ? `restapi.e-shops.co.il${eshopHealth.categoriesCount != null ? ` · ${eshopHealth.categoriesCount} categories` : ''}`
+                      : (eshopHealth.error || '').length > 240
+                        ? (eshopHealth.error || '').slice(0, 240) + '…'
+                        : (eshopHealth.error || (language === 'he' ? 'לא ניתן להתחבר ל-API' : 'Cannot reach eShop API'))
+                  }
                   className={cn(
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border",
                     eshopHealth.ok
