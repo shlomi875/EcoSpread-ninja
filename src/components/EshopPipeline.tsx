@@ -6,7 +6,7 @@ import {
   Play, Pause, SkipForward, Filter, X, RefreshCw,
   FileText, ArrowRightLeft, Pencil, Search, Layers,
   Save, ChevronDown, ChevronUp, Wand2, Eye, Copy,
-  ZoomIn, RotateCcw,
+  ZoomIn, RotateCcw, CloudUpload,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { translations, Language } from '../i18n';
@@ -27,6 +27,10 @@ interface EshopPipelineProps {
   settings: CompanySettings; 
   onSaveToInventory?: (products: Product[]) => Promise<void>; 
 }
+
+type PushStatus = 'added' | 'updated' | 'skipped' | 'error';
+interface PushResultRow { itemId: string; status: PushStatus; message?: string }
+interface PushSummary { total: number; added: number; updated: number; errors: number }
 
 // ─── Model Config ─────────────────────────────────────────────────────────────
 const ENRICH_MODELS = [
@@ -735,6 +739,9 @@ export function EshopPipeline({ language, settings, onSaveToInventory }: EshopPi
   const [page, setPage] = useState(0);
   const [selectedExportIds, setSelectedExportIds] = useState<Set<number>>(new Set());
   const [selectedEnrichIds, setSelectedEnrichIds] = useState<Set<number>>(new Set());
+  const [isPushing, setIsPushing] = useState(false);
+  const [pushResults, setPushResults] = useState<Record<string, PushResultRow>>({});
+  const [pushSummary, setPushSummary] = useState<PushSummary | null>(null);
   const PAGE_SIZE = 20;
   const runningRef = useRef(false);
 
@@ -843,6 +850,86 @@ export function EshopPipeline({ language, settings, onSaveToInventory }: EshopPi
     const a = document.createElement('a'); a.href = url;
     a.download = `eshop-enriched-${brandFilter || 'all'}-${new Date().toISOString().split('T')[0]}.csv`;
     a.click(); URL.revokeObjectURL(url);
+  };
+
+  // ── Push to e-shops.co.il (upsert via REST API) ─────────────────────────────
+  const toPushableProduct = (p: EshopProduct) => {
+    // Absolutize relative image URLs the same way the CSV export does.
+    const origin = window.location.origin;
+    const absImages = (p.images || '')
+      .split(';')
+      .map(s => s.trim())
+      .filter(Boolean)
+      .map(u => u.startsWith('/') ? `${origin}${u}` : u)
+      .join(';');
+    return {
+      itemId: p.itemId,
+      name: p.name,
+      brand: p.brand,
+      manufacturer: p.manufacturer,
+      modelNumber: p.modelNumber,
+      description: p.description,
+      shortDescription: p.shortDescription,
+      category: p.category,
+      subCategory: p.subCategory,
+      regularPrice: p.regularPrice,
+      salePrice: p.salePrice,
+      deliveryPrice: p.deliveryPrice,
+      deliveryTime: p.deliveryTime,
+      maxPayments: p.maxPayments,
+      warranty: p.warranty,
+      warrantyText: p.warrantyText,
+      supplierName: p.supplierName,
+      seoTitle: p.seoTitle,
+      seoDescription: p.seoDescription,
+      seoKeywords: p.seoKeywords,
+      images: absImages,
+      zapUrl: p.zapUrl,
+      movement: p.movement,
+      diameter: p.diameter,
+      material: p.material,
+      gender: p.gender,
+      waterResistance: p.waterResistance,
+      glass: p.glass,
+      watchStyle: p.watchStyle,
+      strapMaterial: p.strapMaterial,
+      caseMaterial: p.caseMaterial,
+      colors: p.colors,
+    };
+  };
+
+  const handlePushToEshop = async (onlySelected = false) => {
+    const source = onlySelected && selectedExportIds.size > 0
+      ? filteredProducts.filter(p => selectedExportIds.has(p._idx))
+      : filteredProducts;
+    const payload = source.filter(p => p.itemId && p.name).map(toPushableProduct);
+    if (!payload.length) return;
+
+    setIsPushing(true);
+    setPushSummary(null);
+    try {
+      const r = await fetch('/api/eshop/push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ products: payload }),
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error(err.error || `HTTP ${r.status}`);
+      }
+      const data: { summary: PushSummary; results: PushResultRow[] } = await r.json();
+      const next: Record<string, PushResultRow> = { ...pushResults };
+      data.results.forEach(x => { if (x.itemId) next[x.itemId] = x; });
+      setPushResults(next);
+      setPushSummary(data.summary);
+    } catch (err: any) {
+      setPushSummary({ total: payload.length, added: 0, updated: 0, errors: payload.length });
+      const next: Record<string, PushResultRow> = { ...pushResults };
+      payload.forEach(p => { next[p.itemId] = { itemId: p.itemId, status: 'error', message: err.message }; });
+      setPushResults(next);
+    } finally {
+      setIsPushing(false);
+    }
   };
 
   const handleSaveSelectedToInventory = async () => {
@@ -1248,6 +1335,30 @@ export function EshopPipeline({ language, settings, onSaveToInventory }: EshopPi
             ))}
           </div>
 
+          {/* Push summary banner */}
+          {pushSummary && (
+            <div className={cn(
+              "rounded-2xl border p-4 flex items-center justify-between flex-wrap gap-2",
+              pushSummary.errors === 0 ? "bg-green-50 border-green-200" : "bg-orange-50 border-orange-200"
+            )}>
+              <div className="flex items-center gap-2 text-sm">
+                {pushSummary.errors === 0
+                  ? <CheckCircle2 className="w-5 h-5 text-green-600" />
+                  : <AlertCircle className="w-5 h-5 text-orange-600" />}
+                <span className="font-semibold text-gray-800">
+                  {t.pushSummary
+                    .replace('{added}', String(pushSummary.added))
+                    .replace('{updated}', String(pushSummary.updated))
+                    .replace('{errors}', String(pushSummary.errors))}
+                </span>
+              </div>
+              <button onClick={() => { setPushSummary(null); }}
+                className="p-1 text-gray-400 hover:text-gray-600 rounded-lg transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+
           <div className="bg-white rounded-2xl border shadow-sm overflow-hidden">
             <div className="p-4 border-b bg-gray-50 flex items-center justify-between">
               <p className="text-sm font-semibold text-gray-700">{t.exportReady}</p>
@@ -1259,6 +1370,13 @@ export function EshopPipeline({ language, settings, onSaveToInventory }: EshopPi
                     {language === 'he' ? 'שמור נבחרים למלאי' : 'Save Selected to Inventory'} ({selectedExportIds.size})
                   </button>
                 )}
+                {selectedExportIds.size > 0 && (
+                  <button onClick={() => handlePushToEshop(true)} disabled={isPushing}
+                    className="flex items-center gap-2 px-4 py-1.5 bg-purple-100 text-purple-700 rounded-lg text-xs font-bold hover:bg-purple-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                    {isPushing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CloudUpload className="w-3.5 h-3.5" />}
+                    {t.pushSelected} ({selectedExportIds.size})
+                  </button>
+                )}
                 <p className="text-xs text-gray-400">{filteredProducts.length} products → eShop CSV</p>
               </div>
             </div>
@@ -1267,13 +1385,15 @@ export function EshopPipeline({ language, settings, onSaveToInventory }: EshopPi
                 <thead className="sticky top-0 bg-gray-50 border-b">
                   <tr>
                     <th className="px-4 py-3"><input type="checkbox" checked={selectedExportIds.size > 0 && selectedExportIds.size === pageProducts.length} onChange={toggleAllExportSelection} className="rounded border-gray-300" /></th>
-                    {['SKU', t.productName, 'Status', t.description, 'SEO Title', t.movement, 'Images'].map(h => (
+                    {['SKU', t.productName, 'Status', t.description, 'SEO Title', t.movement, 'Images', 'eShop'].map(h => (
                       <th key={h} className={cn('px-4 py-3 font-semibold text-gray-500 uppercase', isRTL ? 'text-right' : 'text-left')}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {pageProducts.map(p => (
+                  {pageProducts.map(p => {
+                    const pr = pushResults[p.itemId];
+                    return (
                     <tr key={p._idx} className="hover:bg-gray-50 transition-colors cursor-pointer" onClick={() => toggleExportSelection(p._idx)}>
                       <td className="px-4 py-2.5">
                         <input type="checkbox" checked={selectedExportIds.has(p._idx)} onChange={() => toggleExportSelection(p._idx)} onClick={e => e.stopPropagation()} className="rounded border-gray-300" />
@@ -1287,8 +1407,20 @@ export function EshopPipeline({ language, settings, onSaveToInventory }: EshopPi
                       <td className="px-4 py-2.5">
                         {p.images ? <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-[10px] font-bold">✓ {p.images.split(';').filter(Boolean).length}</span> : <span className="text-gray-300">—</span>}
                       </td>
+                      <td className="px-4 py-2.5">
+                        {!pr ? (
+                          <span className="px-2 py-0.5 bg-gray-100 text-gray-400 rounded-full text-[10px] font-bold">{t.eshopStatusNone}</span>
+                        ) : pr.status === 'added' ? (
+                          <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-full text-[10px] font-bold">+ {t.eshopStatusAdded}</span>
+                        ) : pr.status === 'updated' ? (
+                          <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-bold">↻ {t.eshopStatusUpdated}</span>
+                        ) : (
+                          <span title={pr.message || ''} className="px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-[10px] font-bold">✗ {t.eshopStatusError}</span>
+                        )}
+                      </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -1305,11 +1437,21 @@ export function EshopPipeline({ language, settings, onSaveToInventory }: EshopPi
             <button onClick={resetPipeline} className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors">
               <RefreshCw className="w-4 h-4" />{t.backToImport}
             </button>
-            <button onClick={handleDownloadCSV}
-              className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 hover:shadow-xl transition-all active:scale-95 text-sm">
-              <Download className="w-5 h-5" />{t.downloadEshopCsv}
-              <span className="px-2 py-0.5 bg-white/20 rounded-full text-xs">{filteredProducts.length}</span>
-            </button>
+            <div className="flex items-center gap-3 flex-wrap">
+              <button onClick={handleDownloadCSV}
+                className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-indigo-200 text-indigo-700 rounded-xl font-bold hover:bg-indigo-50 transition-all active:scale-95 text-sm">
+                <Download className="w-5 h-5" />{t.downloadEshopCsv}
+                <span className="px-2 py-0.5 bg-indigo-100 rounded-full text-xs">{filteredProducts.length}</span>
+              </button>
+              <button onClick={() => handlePushToEshop(false)} disabled={isPushing || filteredProducts.length === 0}
+                className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-purple-200 hover:shadow-xl transition-all active:scale-95 text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                {isPushing ? <Loader2 className="w-5 h-5 animate-spin" /> : <CloudUpload className="w-5 h-5" />}
+                {isPushing ? t.pushing : t.pushToEshop}
+                <span className="px-2 py-0.5 bg-white/20 rounded-full text-xs">
+                  {selectedExportIds.size > 0 ? selectedExportIds.size : filteredProducts.length}
+                </span>
+              </button>
+            </div>
           </div>
         </div>
       )}

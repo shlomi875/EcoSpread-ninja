@@ -12,6 +12,13 @@ import { db } from './src/db/client';
 import { users, products, assets, companySettings } from './src/db/schema';
 import { eq, inArray, or } from 'drizzle-orm';
 import 'dotenv/config';
+import {
+  isConfigured as eshopConfigured,
+  getCategories as eshopGetCategories,
+  pushProduct as eshopPushProduct,
+  PushableProduct,
+  PushResult,
+} from './src/services/eshopApi';
 
 const __dirname = process.cwd();
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
@@ -864,6 +871,77 @@ Keep the watch as the main subject. Preserve all watch details and branding.`;
       console.error('check-existing error:', e.message);
       res.status(500).json({ error: 'Failed to check existing products', detail: e.message });
     }
+  });
+
+  // ─── eShop REST API (restapi.e-shops.co.il) ────────────────────────
+  // Lightweight in-memory cache for categories (15 minutes)
+  let categoriesCache: { at: number; data: any } | null = null;
+  const CATEGORIES_TTL = 15 * 60 * 1000;
+
+  // Health / connection status for the eShop integration
+  app.get('/api/eshop/health', authenticate, async (_req, res) => {
+    if (!eshopConfigured()) {
+      return res.json({ configured: false, ok: false });
+    }
+    try {
+      const data = await eshopGetCategories('he');
+      const count = Array.isArray(data) ? data.length
+        : Array.isArray(data?.Categories) ? data.Categories.length
+        : Array.isArray(data?.categories) ? data.categories.length
+        : 0;
+      res.json({ configured: true, ok: true, categoriesCount: count });
+    } catch (e: any) {
+      res.json({ configured: true, ok: false, error: e?.message || 'eShop request failed' });
+    }
+  });
+
+  // Categories pass-through (cached)
+  app.get('/api/eshop/categories', authenticate, async (_req, res) => {
+    if (!eshopConfigured()) return res.status(503).json({ error: 'eShop API not configured' });
+    const now = Date.now();
+    if (categoriesCache && now - categoriesCache.at < CATEGORIES_TTL) {
+      return res.json(categoriesCache.data);
+    }
+    try {
+      const data = await eshopGetCategories('he');
+      categoriesCache = { at: now, data };
+      res.json(data);
+    } catch (e: any) {
+      res.status(502).json({ error: 'eShop categories fetch failed', detail: e?.message });
+    }
+  });
+
+  // Push products to e-shops.co.il (upsert). Body: { products: PushableProduct[] }
+  app.post('/api/eshop/push', authenticate, requireRole('admin', 'editor'), async (req: any, res) => {
+    if (!eshopConfigured()) return res.status(503).json({ error: 'eShop API not configured' });
+
+    const list: PushableProduct[] = Array.isArray(req.body?.products) ? req.body.products : [];
+    if (!list.length) return res.status(400).json({ error: 'No products provided' });
+
+    const proto = (req.headers['x-forwarded-proto'] as string) || req.protocol || 'http';
+    const host = req.headers['x-forwarded-host'] || req.headers.host;
+    const origin = host ? `${proto}://${host}` : undefined;
+
+    const results: PushResult[] = [];
+    for (let i = 0; i < list.length; i++) {
+      const p = list[i];
+      try {
+        const r = await eshopPushProduct(p, origin);
+        results.push(r);
+      } catch (err: any) {
+        results.push({ itemId: p?.itemId || '', status: 'error', message: err?.message || 'unknown error' });
+      }
+      // Small delay between calls to stay polite with the remote API.
+      if (i < list.length - 1) await new Promise(r => setTimeout(r, 400));
+    }
+
+    const summary = {
+      total: results.length,
+      added: results.filter(r => r.status === 'added').length,
+      updated: results.filter(r => r.status === 'updated').length,
+      errors: results.filter(r => r.status === 'error').length,
+    };
+    res.json({ summary, results });
   });
 
   // ─── Vite / Static ─────────────────────────────────────────────────

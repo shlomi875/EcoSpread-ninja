@@ -16,7 +16,7 @@ import { Product, CompanySettings, AppView } from './types';
 import { translations, Language } from './i18n';
 import { searchProductData } from './services/geminiService';
 import { motion, AnimatePresence } from 'motion/react';
-import { Sparkles, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Sparkles, CheckCircle2, AlertCircle, CloudUpload, CloudOff } from 'lucide-react';
 import { cn } from './lib/utils';
 
 export default function App() {
@@ -39,6 +39,9 @@ export default function App() {
   const [selectedAuditProducts, setSelectedAuditProducts] = useState<Product[]>([]);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [isViewMode, setIsViewMode] = useState(false);
+  const [eshopHealth, setEshopHealth] = useState<{ configured: boolean; ok: boolean } | null>(null);
+  const [pushingIds, setPushingIds] = useState<Set<string>>(new Set());
+  const [pushStatuses, setPushStatuses] = useState<Record<string, 'added' | 'updated' | 'error' | undefined>>({});
 
   const t = translations[language];
 
@@ -81,9 +84,109 @@ export default function App() {
     } catch (e) { console.error(e); }
   }, []);
 
+  const loadEshopHealth = useCallback(async () => {
+    try {
+      const r = await fetch('/api/eshop/health');
+      if (r.ok) setEshopHealth(await r.json());
+      else setEshopHealth({ configured: false, ok: false });
+    } catch { setEshopHealth({ configured: false, ok: false }); }
+  }, []);
+
   useEffect(() => {
-    if (user) { loadProducts(); loadSettings(); }
-  }, [user, loadProducts, loadSettings]);
+    if (user) { loadProducts(); loadSettings(); loadEshopHealth(); }
+  }, [user, loadProducts, loadSettings, loadEshopHealth]);
+
+  // ── Push products to e-shops.co.il ────────────────────────────────
+  const toPushablePayload = (p: Product) => ({
+    itemId: p.sku || p.modelNumber || p.id,
+    name: p.name,
+    brand: p.manufacturer,
+    manufacturer: p.manufacturer,
+    modelNumber: p.modelNumber,
+    description: p.description,
+    shortDescription: p.shortDescription,
+    category: p.category,
+    subCategory: p.subCategory,
+    regularPrice: p.price,
+    salePrice: p.salePrice,
+    deliveryTime: p.deliveryTime,
+    maxPayments: p.payments,
+    warranty: p.warranty,
+    seoTitle: p.name,
+    seoKeywords: (p.seoKeywords || []).join(', '),
+    images: (p.images || []).join(';'),
+    zapUrl: p.zapLink,
+    movement: p.movement,
+    diameter: p.diameter,
+    material: p.material,
+    gender: p.gender,
+    waterResistance: p.waterResistance,
+    glass: p.glass,
+    watchStyle: p.watchStyle,
+    strapMaterial: p.strapMaterial,
+    caseMaterial: p.caseMaterial,
+    colors: (p.colors || []).join(', '),
+  });
+
+  const handlePushToEshop = async (productsToPush: Product[]) => {
+    if (!productsToPush.length) return;
+    if (eshopHealth && !eshopHealth.configured) {
+      showNotification('error', language === 'he' ? 'eShop API לא מוגדר' : 'eShop API is not configured');
+      return;
+    }
+    const ids = productsToPush.map(p => p.id);
+    setPushingIds(prev => { const n = new Set(prev); ids.forEach(id => n.add(id)); return n; });
+    try {
+      const r = await fetch('/api/eshop/push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ products: productsToPush.map(toPushablePayload) }),
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error(err.error || `HTTP ${r.status}`);
+      }
+      const data: { summary: { added: number; updated: number; errors: number }, results: { itemId: string; status: 'added'|'updated'|'error'|'skipped'; message?: string }[] } = await r.json();
+
+      const itemToProductId = new Map<string, string>();
+      productsToPush.forEach(p => {
+        const key = p.sku || p.modelNumber || p.id;
+        itemToProductId.set(key, p.id);
+      });
+
+      setPushStatuses(prev => {
+        const next = { ...prev };
+        data.results.forEach(res => {
+          const pid = itemToProductId.get(res.itemId);
+          if (pid) next[pid] = res.status === 'skipped' ? undefined : res.status;
+        });
+        return next;
+      });
+
+      if (data.summary.errors === 0) {
+        showNotification('success', language === 'he'
+          ? `${data.summary.added} נוספו · ${data.summary.updated} עודכנו ב-eShop`
+          : `Pushed to eShop: ${data.summary.added} added, ${data.summary.updated} updated`);
+      } else {
+        showNotification('error', language === 'he'
+          ? `${data.summary.errors} שגיאות, ${data.summary.added + data.summary.updated} הצליחו`
+          : `${data.summary.errors} errors, ${data.summary.added + data.summary.updated} succeeded`);
+      }
+    } catch (err: any) {
+      setPushStatuses(prev => {
+        const next = { ...prev };
+        productsToPush.forEach(p => { next[p.id] = 'error'; });
+        return next;
+      });
+      showNotification('error', (language === 'he' ? 'דחיפה ל-eShop נכשלה: ' : 'Push to eShop failed: ') + (err?.message || ''));
+    } finally {
+      setPushingIds(prev => {
+        const n = new Set(prev);
+        ids.forEach(id => n.delete(id));
+        return n;
+      });
+    }
+  };
 
   // ── Products CRUD ─────────────────────────────────────────────────
   const handleAddProduct = () => {
@@ -272,8 +375,28 @@ export default function App() {
                 <h2 className="text-2xl font-bold tracking-tight text-gray-900">{t.inventory}</h2>
                 <p className="text-sm text-gray-500">{t.inventorySub}</p>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
                 {isLoading && <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />}
+                {eshopHealth && (
+                  <div
+                    title={eshopHealth.ok ? 'restapi.e-shops.co.il' : ''}
+                    className={cn(
+                      "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border",
+                      eshopHealth.ok
+                        ? "bg-purple-50 text-purple-700 border-purple-100"
+                        : eshopHealth.configured
+                          ? "bg-orange-50 text-orange-700 border-orange-100"
+                          : "bg-gray-50 text-gray-500 border-gray-200"
+                    )}
+                  >
+                    {eshopHealth.ok ? <CloudUpload className="w-3.5 h-3.5" /> : <CloudOff className="w-3.5 h-3.5" />}
+                    {eshopHealth.ok
+                      ? (t as any).eshopConnected
+                      : eshopHealth.configured
+                        ? (t as any).eshopError
+                        : (t as any).eshopNotConfigured}
+                  </div>
+                )}
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 rounded-full text-xs font-bold border border-green-100">
                   <Sparkles className="w-3.5 h-3.5" />
                   {t.aiActive}
@@ -294,6 +417,9 @@ export default function App() {
                   setSelectedAuditProducts(selected);
                   setIsAuditModalOpen(true);
                 }}
+                onPushToEshop={eshopHealth?.configured ? handlePushToEshop : undefined}
+                pushingIds={pushingIds}
+                pushStatuses={pushStatuses}
               />
             </div>
           </>
@@ -324,6 +450,26 @@ export default function App() {
                 <h2 className="text-2xl font-bold tracking-tight text-gray-900">{(t as any).eshopPipeline}</h2>
                 <p className="text-sm text-gray-500">{(t as any).eshopPipelineSub}</p>
               </div>
+              {eshopHealth && (
+                <div
+                  title={eshopHealth.ok ? 'restapi.e-shops.co.il' : ''}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border",
+                    eshopHealth.ok
+                      ? "bg-purple-50 text-purple-700 border-purple-100"
+                      : eshopHealth.configured
+                        ? "bg-orange-50 text-orange-700 border-orange-100"
+                        : "bg-gray-50 text-gray-500 border-gray-200"
+                  )}
+                >
+                  {eshopHealth.ok ? <CloudUpload className="w-3.5 h-3.5" /> : <CloudOff className="w-3.5 h-3.5" />}
+                  {eshopHealth.ok
+                    ? (t as any).eshopConnected
+                    : eshopHealth.configured
+                      ? (t as any).eshopError
+                      : (t as any).eshopNotConfigured}
+                </div>
+              )}
             </header>
             <div className="flex-1 p-10 overflow-y-auto">
               <EshopPipeline language={language} settings={settings} onSaveToInventory={handleSyncProductsToDB} />

@@ -7,7 +7,7 @@ import {
   getFilteredRowModel,
 } from '@tanstack/react-table';
 import { Product } from '../types';
-import { Edit2, ExternalLink, Eye, Image as ImageIcon, Search, Trash2, CheckSquare, Square, Sparkles, Filter, X } from 'lucide-react';
+import { Edit2, ExternalLink, Eye, Image as ImageIcon, Search, Trash2, CheckSquare, Square, Sparkles, Filter, X, CloudUpload, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { translations, Language } from '../i18n';
 
@@ -21,11 +21,14 @@ interface SpreadsheetProps {
   language: Language;
   role: string;
   onAudit: (products: Product[]) => void;
+  onPushToEshop?: (products: Product[]) => Promise<void> | void;
+  pushingIds?: Set<string>;
+  pushStatuses?: Record<string, 'added' | 'updated' | 'error' | undefined>;
 }
 
 const columnHelper = createColumnHelper<Product>();
 
-export function Spreadsheet({ data, onEdit, onDelete, onView, searchQuery, onSearchChange, language, role, onAudit }: SpreadsheetProps) {
+export function Spreadsheet({ data, onEdit, onDelete, onView, searchQuery, onSearchChange, language, role, onAudit, onPushToEshop, pushingIds, pushStatuses }: SpreadsheetProps) {
   const t = translations[language];
   const [rowSelection, setRowSelection] = React.useState({});
   const [filterCategory, setFilterCategory] = React.useState('');
@@ -156,11 +159,14 @@ export function Spreadsheet({ data, onEdit, onDelete, onView, searchQuery, onSea
         const tableRole = (info.table.options.meta as any)?.role;
         const canEdit = tableRole !== 'viewer';
         const isAdmin = tableRole === 'admin';
+        const row = info.row.original;
+        const pushing = pushingIds?.has(row.id);
+        const pushStatus = pushStatuses?.[row.id];
         return (
           <div className={cn("flex gap-1", language === 'he' ? "justify-start" : "justify-end")}>
             {/* View (read-only) button — always visible */}
             <button
-              onClick={() => onView(info.row.original)}
+              onClick={() => onView(row)}
               className="p-2 hover:bg-purple-50 text-purple-500 rounded-lg transition-colors"
               title={(t as any).viewProduct}
             >
@@ -169,17 +175,35 @@ export function Spreadsheet({ data, onEdit, onDelete, onView, searchQuery, onSea
             {/* Edit button — hidden for viewer */}
             {canEdit && (
               <button
-                onClick={() => onEdit(info.row.original)}
+                onClick={() => onEdit(row)}
                 className="p-2 hover:bg-blue-50 text-blue-600 rounded-lg transition-colors"
                 title="Edit Product"
               >
                 <Edit2 className="w-4 h-4" />
               </button>
             )}
+            {/* Push to eShop — admin/editor only */}
+            {canEdit && onPushToEshop && (
+              <button
+                onClick={() => onPushToEshop([row])}
+                disabled={pushing}
+                className={cn(
+                  "p-2 rounded-lg transition-colors",
+                  pushStatus === 'added'   ? "bg-green-50 text-green-600" :
+                  pushStatus === 'updated' ? "bg-blue-50 text-blue-600"   :
+                  pushStatus === 'error'   ? "bg-red-50 text-red-600"     :
+                  "hover:bg-purple-50 text-purple-600",
+                  pushing && "opacity-60 cursor-not-allowed"
+                )}
+                title={(t as any).eshopSyncRow}
+              >
+                {pushing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CloudUpload className="w-4 h-4" />}
+              </button>
+            )}
             {/* Delete — admin only */}
             {isAdmin && (
               <button
-                onClick={() => onDelete(info.row.original.id)}
+                onClick={() => onDelete(row.id)}
                 className="p-2 hover:bg-red-50 text-red-500 rounded-lg transition-colors"
                 title="Delete Product"
               >
@@ -226,15 +250,26 @@ export function Spreadsheet({ data, onEdit, onDelete, onView, searchQuery, onSea
             )}
           />
         </div>
-        <div className="flex items-center gap-4 text-xs">
+        <div className="flex items-center gap-2 text-xs flex-wrap">
           {selectedProducts.length > 0 ? (
-            <button
-              onClick={() => onAudit(selectedProducts)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg font-bold shadow-sm hover:shadow-md transition-all active:scale-[0.98]"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              {(t as any).masterSeo}
-            </button>
+            <>
+              <button
+                onClick={() => onAudit(selectedProducts)}
+                className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 text-white rounded-lg font-bold shadow-sm hover:shadow-md transition-all active:scale-[0.98]"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                {(t as any).masterSeo}
+              </button>
+              {onPushToEshop && role !== 'viewer' && (
+                <button
+                  onClick={() => onPushToEshop(selectedProducts)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg font-bold shadow-sm hover:shadow-md transition-all active:scale-[0.98]"
+                >
+                  <CloudUpload className="w-3.5 h-3.5" />
+                  {(t as any).pushToEshop} ({selectedProducts.length})
+                </button>
+              )}
+            </>
           ) : (
             <div className="flex items-center gap-4 text-gray-500">
               <span>{filteredData.length}{activeFilterCount > 0 ? ` / ${data.length}` : ''} {t.products}</span>
